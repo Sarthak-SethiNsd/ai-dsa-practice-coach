@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchableSingleSelect, SearchableMultiSelect } from "@/components/ui/MultiSelect";
+import { useAppContext } from "@/context/AppContext";
 import { Award, Code2, BookOpen, Layers } from "lucide-react";
 
 const languagesList = ["Java", "C++", "Python", "JavaScript", "C#", "Go", "Rust"];
@@ -53,15 +54,20 @@ const dsaTopicsList = [
 ];
 
 export default function Profile() {
-  const [selectedLanguage, setSelectedLanguage] = React.useState<string>("JavaScript");
-  const [selectedTopics, setSelectedTopics] = React.useState<string[]>([
-    "Arrays",
-    "Strings",
-    "Sorting",
-    "Binary Search",
-    "Recursion",
-    "Hashing"
-  ]);
+  const { selectedLanguage, selectedTopics, saveProfile } = useAppContext();
+
+  // Initialise local draft state once from context; user must Save or Cancel to commit/discard
+  const [localLanguage, setLocalLanguage] = React.useState<string>(() => selectedLanguage);
+  const [localTopics, setLocalTopics] = React.useState<string[]>(() => selectedTopics);
+
+  const handleSave = () => {
+    saveProfile(localLanguage, localTopics);
+  };
+
+  const handleCancel = () => {
+    setLocalLanguage(selectedLanguage);
+    setLocalTopics(selectedTopics);
+  };
 
   return (
     <div className="space-y-8 select-none">
@@ -96,8 +102,8 @@ export default function Profile() {
               <div className="max-w-md">
                 <SearchableSingleSelect
                   options={languagesList}
-                  selected={selectedLanguage}
-                  onChange={setSelectedLanguage}
+                  selected={localLanguage}
+                  onChange={setLocalLanguage}
                   placeholder="Choose programming language..."
                 />
               </div>
@@ -119,8 +125,8 @@ export default function Profile() {
               </p>
               <SearchableMultiSelect
                 options={dsaTopicsList}
-                selected={selectedTopics}
-                onChange={setSelectedTopics}
+                selected={localTopics}
+                onChange={setLocalTopics}
                 placeholder="Search and select DSA topics..."
               />
             </CardContent>
@@ -129,10 +135,10 @@ export default function Profile() {
           {/* Section 4: Cancel and Save Profile buttons */}
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-3">
-              <Button variant="secondary" size="md" className="cursor-pointer">
+              <Button variant="secondary" size="md" className="cursor-pointer" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button variant="primary" size="md" className="cursor-pointer">
+              <Button variant="primary" size="md" className="cursor-pointer" onClick={handleSave}>
                 Save Profile
               </Button>
             </div>
@@ -160,7 +166,7 @@ export default function Profile() {
                 <h3 className="text-sm font-semibold text-slate-500">Total Topics Selected</h3>
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                    {selectedTopics.length}
+                    {localTopics.length}
                   </span>
                   <span className="text-xs font-semibold text-slate-400">
                     / {dsaTopicsList.length} topics
@@ -171,12 +177,12 @@ export default function Profile() {
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div 
                   className="bg-sky-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${(selectedTopics.length / dsaTopicsList.length) * 100}%` }}
+                  style={{ width: `${(localTopics.length / dsaTopicsList.length) * 100}%` }}
                 />
               </div>
 
               <div className="pt-2 text-xs text-slate-500 font-medium leading-relaxed">
-                Your permanent knowledge represents <span className="font-bold text-sky-700">{Math.round((selectedTopics.length / dsaTopicsList.length) * 100)}%</span> of the standard DSA curriculum.
+                Your permanent knowledge represents <span className="font-bold text-sky-700">{Math.round((localTopics.length / dsaTopicsList.length) * 100)}%</span> of the standard DSA curriculum.
               </div>
             </CardContent>
           </Card>

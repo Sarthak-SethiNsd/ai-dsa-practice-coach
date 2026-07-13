@@ -1,10 +1,28 @@
+"use client";
+
 import * as React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { useAppContext } from "@/context/AppContext";
 import { Trophy, BookOpen, Activity, ArrowUpRight } from "lucide-react";
 
+const TOTAL_TOPICS_COUNT = 41;
+
 export default function Home() {
+  const router = useRouter();
+  const { selectedLanguage, selectedTopics, problems, history, selectReviewProblem } = useAppContext();
+
+  const completionPercentage = Math.round((selectedTopics.length / TOTAL_TOPICS_COUNT) * 100);
+  const activeProblem = problems.length > 0 ? problems[0] : null;
+
+  const handleReviewClick = (problemId: number) => {
+    selectReviewProblem(problemId);
+    router.push("/review");
+  };
+
   return (
     <div className="space-y-8 select-none">
       {/* Welcome / Header Section */}
@@ -34,25 +52,31 @@ export default function Home() {
           <CardContent className="space-y-4 flex-1">
             <div className="space-y-2">
               <div className="flex justify-between items-baseline">
-                <span className="text-3xl font-extrabold text-slate-900">4 / 5</span>
-                <span className="text-xs font-semibold text-slate-500">Problems Completed</span>
+                <span className="text-3xl font-extrabold text-slate-900">
+                  {selectedTopics.length}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">
+                  / {TOTAL_TOPICS_COUNT} Topics Known
+                </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                 <div 
                   className="bg-sky-600 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: "80%" }}
+                  style={{ width: `${completionPercentage}%` }}
                 />
               </div>
             </div>
-            <div className="flex gap-2">
-              <Badge variant="primary">Target met: 80%</Badge>
-              <Badge variant="neutral">Streak: 12d</Badge>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Badge variant="primary">Language: {selectedLanguage}</Badge>
+              <Badge variant="secondary">Mastery: {completionPercentage}%</Badge>
             </div>
           </CardContent>
           <CardFooter>
-            <Button variant="ghost" size="sm" className="w-full text-sky-600 hover:text-sky-700 font-semibold gap-1.5 cursor-pointer">
-              View target details <ArrowUpRight className="w-4 h-4" />
-            </Button>
+            <Link href="/profile" passHref legacyBehavior>
+              <Button variant="ghost" size="sm" className="w-full text-sky-600 hover:text-sky-700 font-semibold gap-1.5 cursor-pointer">
+                Configure Profile <ArrowUpRight className="w-4 h-4" />
+              </Button>
+            </Link>
           </CardFooter>
         </Card>
 
@@ -68,21 +92,36 @@ export default function Home() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4 flex-1">
-            <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-1">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-semibold text-slate-800">Longest Common Subsequence</span>
-                <Badge variant="warning">Hard</Badge>
+            {activeProblem ? (
+              <>
+                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-1">
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-800 truncate">{activeProblem.title}</span>
+                    <Badge variant={activeProblem.difficulty === "Easy" ? "success" : activeProblem.difficulty === "Medium" ? "primary" : "warning"}>
+                      {activeProblem.difficulty}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {activeProblem.topics.slice(0, 2).join(", ")} • {activeProblem.estimated} left
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="neutral">Targeting active topics</Badge>
+                </div>
+              </>
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-sm text-slate-450 font-medium">No topics selected yet.</p>
+                <p className="text-xs text-slate-400 mt-1">Configure profile to unlock challenges.</p>
               </div>
-              <p className="text-xs text-slate-500">Dynamic Programming • 45m left</p>
-            </div>
-            <div className="flex gap-2">
-              <Badge variant="neutral">Topics: DP, String</Badge>
-            </div>
+            )}
           </CardContent>
           <CardFooter>
-            <Button variant="primary" size="sm" className="w-full font-semibold cursor-pointer">
-              Start Practice
-            </Button>
+            <Link href="/practice" passHref legacyBehavior>
+              <Button variant="primary" size="sm" className="w-full font-semibold cursor-pointer">
+                Start Practice
+              </Button>
+            </Link>
           </CardFooter>
         </Card>
 
@@ -98,28 +137,39 @@ export default function Home() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4 flex-1">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-0.5">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-slate-800">Binary Tree Maximum Path Sum</span>
-                  <span className="text-[10px] text-slate-400">Completed • 2 hours ago</span>
-                </div>
-                <Badge variant="success">Solved</Badge>
+            {history.length > 0 ? (
+              <div className="space-y-3.5">
+                {history.slice(0, 2).map((item) => (
+                  <div key={item.id} className="space-y-2">
+                    <div className="flex items-center justify-between py-0.5 gap-2">
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-xs font-semibold text-slate-800 truncate">{item.problemTitle}</span>
+                        <span className="text-[10px] text-slate-400">{item.date}</span>
+                      </div>
+                      <button
+                        onClick={() => handleReviewClick(item.problemId)}
+                        className="text-xs font-bold text-sky-600 hover:text-sky-700 shrink-0 hover:underline cursor-pointer"
+                      >
+                        Review
+                      </button>
+                    </div>
+                    <div className="w-full h-px bg-slate-100 last:hidden" />
+                  </div>
+                ))}
               </div>
-              <div className="w-full h-px bg-slate-100" />
-              <div className="flex items-center justify-between py-0.5">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-xs font-semibold text-slate-800">LRU Cache Design</span>
-                  <span className="text-[10px] text-slate-400">Failed Test Cases • 5 hours ago</span>
-                </div>
-                <Badge variant="neutral">Incomplete</Badge>
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-sm text-slate-450 font-medium">No recent attempts.</p>
+                <p className="text-xs text-slate-400 mt-1">Complete your first challenge to see history logs.</p>
               </div>
-            </div>
+            )}
           </CardContent>
           <CardFooter>
-            <Button variant="secondary" size="sm" className="w-full font-semibold cursor-pointer">
-              View Full History
-            </Button>
+            <Link href="/history" passHref legacyBehavior>
+              <Button variant="secondary" size="sm" className="w-full font-semibold cursor-pointer">
+                View Full History
+              </Button>
+            </Link>
           </CardFooter>
         </Card>
 
