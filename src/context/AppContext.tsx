@@ -40,6 +40,8 @@ interface AppContextType {
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
+  resetProfile: () => void;
+  importProfile: (language: string, topics: string[], history: HistoryItem[]) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -1892,15 +1894,77 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     "Binary Search",
     "Recursion"
   ]);
+  const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [selectedReviewProblem, setSelectedReviewProblem] = React.useState<Problem | null>(null);
   const [toast, setToast] = React.useState<ToastState>({ show: false, message: "" });
 
   const problems = React.useMemo(() => getFilteredProblems(selectedTopics), [selectedTopics]);
-  const history = React.useMemo(() => getMockHistory(selectedTopics), [selectedTopics]);
+
+  // Synchronise state from localStorage on first render
+  React.useEffect(() => {
+    const savedLanguage = localStorage.getItem("dsa_language");
+    const savedTopics = localStorage.getItem("dsa_topics");
+    const savedHistory = localStorage.getItem("dsa_history");
+    const savedReviewId = localStorage.getItem("dsa_review_problem_id");
+
+    let activeTopics = [
+      "Arrays",
+      "Hashing",
+      "Two Pointers",
+      "Binary Search",
+      "Recursion"
+    ];
+    if (savedTopics) {
+      try {
+        activeTopics = JSON.parse(savedTopics);
+      } catch (e) {
+        console.error("Failed to parse saved topics", e);
+      }
+    }
+
+    let activeHistory: HistoryItem[] = [];
+    if (savedHistory) {
+      try {
+        activeHistory = JSON.parse(savedHistory);
+      } catch (e) {
+        console.error("Failed to parse saved history", e);
+      }
+    } else {
+      activeHistory = getMockHistory(activeTopics);
+    }
+
+    let activeReview: Problem | null = null;
+    if (savedReviewId) {
+      const match = MOCK_PROBLEMS.find((p) => p.id === parseInt(savedReviewId, 10));
+      if (match) {
+        activeReview = match;
+      }
+    }
+
+    // Defer state updates to avoid synchronous cascading renders during hydration
+    const timer = setTimeout(() => {
+      if (savedLanguage) {
+        setSelectedLanguage(savedLanguage);
+      }
+      setSelectedTopics(activeTopics);
+      setHistory(activeHistory);
+      if (!savedHistory) {
+        localStorage.setItem("dsa_history", JSON.stringify(activeHistory));
+      }
+      if (activeReview) {
+        setSelectedReviewProblem(activeReview);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const saveProfile = (language: string, topics: string[]) => {
     setSelectedLanguage(language);
     setSelectedTopics(topics);
+    localStorage.setItem("dsa_language", language);
+    localStorage.setItem("dsa_topics", JSON.stringify(topics));
+
     setToast({
       show: true,
       message: `Profile updated successfully! Main language: ${language}.`
@@ -1911,7 +1975,51 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const match = MOCK_PROBLEMS.find((p) => p.id === problemId);
     if (match) {
       setSelectedReviewProblem(match);
+      localStorage.setItem("dsa_review_problem_id", problemId.toString());
     }
+  };
+
+  const resetProfile = () => {
+    const defaultTopics = [
+      "Arrays",
+      "Hashing",
+      "Two Pointers",
+      "Binary Search",
+      "Recursion"
+    ];
+    const defaultHistory = getMockHistory(defaultTopics);
+
+    setSelectedLanguage("JavaScript");
+    setSelectedTopics(defaultTopics);
+    setHistory(defaultHistory);
+    setSelectedReviewProblem(null);
+
+    localStorage.removeItem("dsa_language");
+    localStorage.removeItem("dsa_topics");
+    localStorage.removeItem("dsa_history");
+    localStorage.removeItem("dsa_review_problem_id");
+
+    setToast({
+      show: true,
+      message: "Permanent knowledge profile reset to defaults."
+    });
+  };
+
+  const importProfile = (language: string, topics: string[], importedHistory: HistoryItem[]) => {
+    setSelectedLanguage(language);
+    setSelectedTopics(topics);
+    setHistory(importedHistory);
+    setSelectedReviewProblem(null);
+
+    localStorage.setItem("dsa_language", language);
+    localStorage.setItem("dsa_topics", JSON.stringify(topics));
+    localStorage.setItem("dsa_history", JSON.stringify(importedHistory));
+    localStorage.removeItem("dsa_review_problem_id");
+
+    setToast({
+      show: true,
+      message: "Profile imported successfully!"
+    });
   };
 
   const clearToast = () => {
@@ -1929,7 +2037,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         toast,
         saveProfile,
         selectReviewProblem,
-        clearToast
+        clearToast,
+        resetProfile,
+        importProfile
       }}
     >
       {children}

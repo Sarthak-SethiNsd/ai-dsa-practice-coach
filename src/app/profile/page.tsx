@@ -4,8 +4,8 @@ import * as React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchableSingleSelect, SearchableMultiSelect } from "@/components/ui/MultiSelect";
-import { useAppContext } from "@/context/AppContext";
-import { Award, Code2, BookOpen, Layers } from "lucide-react";
+import { useAppContext, HistoryItem } from "@/context/AppContext";
+import { Award, Code2, BookOpen, Layers, Database, Download, Upload, RefreshCw } from "lucide-react";
 
 const languagesList = ["Java", "C++", "Python", "JavaScript", "C#", "Go", "Rust"];
 
@@ -53,12 +53,27 @@ const dsaTopicsList = [
   "Disjoint Set"
 ];
 
-export default function Profile() {
-  const { selectedLanguage, selectedTopics, saveProfile } = useAppContext();
+interface ProfileFormProps {
+  selectedLanguage: string;
+  selectedTopics: string[];
+  saveProfile: (lang: string, topics: string[]) => void;
+  resetProfile: () => void;
+  importProfile: (lang: string, topics: string[], history: HistoryItem[]) => void;
+  history: HistoryItem[];
+}
 
-  // Initialise local draft state once from context; user must Save or Cancel to commit/discard
-  const [localLanguage, setLocalLanguage] = React.useState<string>(() => selectedLanguage);
-  const [localTopics, setLocalTopics] = React.useState<string[]>(() => selectedTopics);
+function ProfileForm({
+  selectedLanguage,
+  selectedTopics,
+  saveProfile,
+  resetProfile,
+  importProfile,
+  history
+}: ProfileFormProps) {
+  const [localLanguage, setLocalLanguage] = React.useState<string>(selectedLanguage);
+  const [localTopics, setLocalTopics] = React.useState<string[]>(selectedTopics);
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
     saveProfile(localLanguage, localTopics);
@@ -67,6 +82,72 @@ export default function Profile() {
   const handleCancel = () => {
     setLocalLanguage(selectedLanguage);
     setLocalTopics(selectedTopics);
+  };
+
+  const handleExport = () => {
+    const exportData = {
+      version: 1,
+      language: selectedLanguage,
+      topics: selectedTopics,
+      history: history
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "dsa_profile.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target!.result as string);
+
+        // Versioning validation
+        if (json.version !== 1) {
+          alert("Incompatible profile version. Only version 1 profiles are supported.");
+          return;
+        }
+
+        // Schema validation
+        if (typeof json.language !== "string" || !Array.isArray(json.topics)) {
+          alert("Invalid profile schema file format.");
+          return;
+        }
+
+        // Validate that language is one of the supported languages
+        if (!languagesList.includes(json.language)) {
+          alert(`Invalid programming language in profile: ${json.language}`);
+          return;
+        }
+
+        // Validate that topics are part of dsaTopicsList
+        const validTopics = json.topics.filter((t: unknown): t is string => typeof t === "string" && dsaTopicsList.includes(t));
+
+        importProfile(json.language, validTopics, json.history || []);
+      } catch {
+        alert("Error parsing profile JSON file.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input value so same file can be uploaded again
+    event.target.value = "";
+  };
+
+  const handleReset = () => {
+    if (window.confirm("Reset your permanent knowledge profile?")) {
+      resetProfile();
+    }
   };
 
   return (
@@ -203,9 +284,68 @@ export default function Profile() {
               </p>
             </CardContent>
           </Card>
+
+          {/* Data Management Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500">
+                  <Database className="w-4 h-4" />
+                </div>
+                <CardTitle className="text-sm">Data Management</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-slate-450 font-semibold leading-relaxed">
+                Backup or restore your permanent knowledge profile configuration.
+              </p>
+              <div className="flex flex-col gap-2 pt-1">
+                <Button variant="secondary" size="sm" onClick={handleExport} className="w-full flex items-center justify-center gap-2 cursor-pointer">
+                  <Download className="w-3.5 h-3.5" /> Export Profile
+                </Button>
+                
+                <Button variant="secondary" size="sm" onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" /> Import Profile
+                </Button>
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImportFile}
+                  accept=".json"
+                  className="hidden"
+                />
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleReset}
+                  className="w-full flex items-center justify-center gap-2 cursor-pointer text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-100"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Reset Profile
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
       </div>
     </div>
+  );
+}
+
+export default function Profile() {
+  const { selectedLanguage, selectedTopics, saveProfile, resetProfile, importProfile, history } = useAppContext();
+
+  return (
+    <ProfileForm
+      key={`${selectedLanguage}-${selectedTopics.join(",")}`}
+      selectedLanguage={selectedLanguage}
+      selectedTopics={selectedTopics}
+      saveProfile={saveProfile}
+      resetProfile={resetProfile}
+      importProfile={importProfile}
+      history={history}
+    />
   );
 }
