@@ -35,15 +35,6 @@ export interface ToastState {
   message: string;
 }
 
-export interface HistoryItem {
-  id: number;
-  problemId: number;
-  problemTitle: string;
-  date: string;
-  difficulty: "Easy" | "Medium" | "Hard";
-  status: "Solved" | "Incomplete";
-}
-
 export interface RecommendationConfig {
   platforms: ("leetcode" | "codeforces")[];
   countPerPlatform: number;
@@ -59,12 +50,21 @@ interface AppContextType {
   selectedReviewProblem: Problem | null;
   toast: ToastState;
   recommendationConfig: RecommendationConfig;
+  // Problem tracking
+  problemStatuses: Record<string, {
+    status: "Not Started" | "In Progress" | "Completed";
+    startedAt?: string; // ISO timestamp
+    completedAt?: string; // ISO timestamp
+  }>;
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
   resetProfile: () => void;
   importProfile: (language: string, topics: string[], history: HistoryItem[]) => void;
   updateRecommendationConfig: (config: Partial<RecommendationConfig>) => void;
+  // Problem tracking functions
+  startPractice: (problemId: number) => void;
+  markCompleted: (problemId: number) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -172,6 +172,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     difficulty: "Mixed",
     totalLimit: 10
   });
+  // Problem status tracking: maps problemId to status object
+  const [problemStatuses, setProblemStatuses] = React.useState<Record<string, {
+    status: "Not Started" | "In Progress" | "Completed";
+    startedAt?: string;
+    completedAt?: string;
+  }>>({});
 
   // Track mount status for safe state updates
   const mountedRef = React.useRef(false);
@@ -209,6 +215,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const savedHistory = localStorage.getItem("dsa_history");
     const savedReviewId = localStorage.getItem("dsa_review_problem_id");
     const savedConfig = localStorage.getItem("dsa_recommendation_config");
+    const savedProblemStatuses = localStorage.getItem("dsa_problem_status");
 
     let activeTopics = [
       "Arrays",
@@ -267,6 +274,19 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
+    let activeProblemStatuses: Record<string, {
+      status: "Not Started" | "In Progress" | "Completed";
+      startedAt?: string;
+      completedAt?: string;
+    }> = {};
+    if (savedProblemStatuses) {
+      try {
+        activeProblemStatuses = JSON.parse(savedProblemStatuses);
+      } catch (e) {
+        console.error("Failed to parse saved problem statuses", e);
+      }
+    }
+
     const activeReview: Problem | null = null;
     if (savedReviewId) {
       // We'll fetch the problem when needed since we don't have all problems loaded yet
@@ -286,10 +306,16 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         setSelectedReviewProblem(activeReview);
       }
       setRecommendationConfig(activeConfig);
+      setProblemStatuses(activeProblemStatuses);
     }, 0);
 
     return () => clearTimeout(timer);
   }, []);
+
+  // Persist problemStatuses to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem("dsa_problem_status", JSON.stringify(problemStatuses));
+  }, [problemStatuses]);
 
   const saveProfile = (language: string, topics: string[]) => {
     setSelectedLanguage(language);
@@ -334,12 +360,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setHistory(defaultHistory);
       setSelectedReviewProblem(null);
       setRecommendationConfig(defaultConfig);
+      setProblemStatuses({}); // Reset problem statuses
 
       localStorage.removeItem("dsa_language");
       localStorage.removeItem("dsa_topics");
       localStorage.removeItem("dsa_history");
       localStorage.removeItem("dsa_review_problem_id");
       localStorage.removeItem("dsa_recommendation_config");
+      localStorage.removeItem("dsa_problem_status");
 
       setToast({
         show: true,
@@ -373,9 +401,75 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+  const startPractice = (problemId: number) => {
+    setProblemStatuses(prev => {
+      const newStatuses = { ...prev };
+      const problemIdStr = problemId.toString();
+      if (!newStatuses[problemIdStr]) {
+        newStatuses[problemIdStr] = {
+          status: "In Progress",
+          startedAt: new Date().toISOString()
+        };
+      } else {
+        // If already started, just update the startedAt? Or leave as is?
+        // We'll update the startedAt to now if restarting.
+        newStatuses[problemIdStr] = {
+          ...newStatuses[problemIdStr],
+          status: "In Progress",
+          startedAt: new Date().toISOString()
+        };
+      }
+      return newStatuses;
+    });
+  };
+
+  const markCompleted = (problemId: number) => {
+    setProblemStatuses(prev => {
+      const newStatuses = { ...prev };
+      const problemIdStr = problemId.toString();
+      if (!newStatuses[problemIdStr]) {
+        newStatuses[problemIdStr] = {
+          status: "Completed",
+          startedAt: new Date().toISOString(), // Assume started now if not started
+          completedAt: new Date().toISOString()
+        };
+      } else {
+        newStatuses[problemIdStr] = {
+          ...newStatuses[problemIdStr],
+          status: "Completed",
+          completedAt: new Date().toISOString()
+        };
+      }
+      return newStatuses;
+    });
+
+    // Add to history
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      const newHistoryItem: HistoryItem = {
+        id: Date.now(), // Simple ID generation
+        problemId: problem.id,
+        problemTitle: problem.title,
+        date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+        difficulty: problem.difficulty,
+        status: "Solved"
+      };
+      setHistory(prev => [newHistoryItem, ...prev]); // Add to the beginning
+      // Note: history persistence is handled by the useEffect that watches history?
+      // Actually, we persist history in the same way as other state?
+      // We don't have a useEffect for history persistence yet.
+      // We'll add it below for consistency.
+    }
+  };
+
   const clearToast = () => {
     setToast((prev: ToastState) => ({ ...prev, show: false }));
   };
+
+  // Persist history to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem("dsa_history", JSON.stringify(history));
+  }, [history]);
 
   return (
     <AppContext.Provider
@@ -387,12 +481,15 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         selectedReviewProblem,
         toast,
         recommendationConfig,
+        problemStatuses,
         saveProfile,
         selectReviewProblem,
         clearToast,
         resetProfile,
         importProfile,
-        updateRecommendationConfig
+        updateRecommendationConfig,
+        startPractice,
+        markCompleted
       }}
     >
       {children}

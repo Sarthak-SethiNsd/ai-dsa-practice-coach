@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAppContext } from "@/context/AppContext";
@@ -11,14 +11,22 @@ import { Search, Filter, BookOpen } from "lucide-react";
 
 export default function Practice() {
   const router = useRouter();
-  const { problems, selectedTopics, selectedLanguage, selectReviewProblem } = useAppContext();
+  const {
+    problems,
+    selectedTopics,
+    selectedLanguage,
+    selectReviewProblem,
+    problemStatuses,
+    startPractice,
+    markCompleted
+  } = useAppContext();
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const filteredProblems = problems.filter((p) =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSolveClick = (problemId: number) => {
+  const handleReviewClick = (problemId: number) => {
     selectReviewProblem(problemId);
     router.push("/review");
   };
@@ -27,6 +35,12 @@ export default function Practice() {
     if (difficulty === "Easy") return "success" as const;
     if (difficulty === "Medium") return "primary" as const;
     return "warning" as const;
+  };
+
+  const getStatusVariant = (status: string) => {
+    if (status === "In Progress") return "primary" as const;
+    if (status === "Completed") return "success" as const;
+    return "secondary" as const;
   };
 
   return (
@@ -89,52 +103,114 @@ export default function Practice() {
           {/* Problems Grid */}
           {filteredProblems.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredProblems.map((problem) => (
-                <Card key={problem.id} className="flex flex-col justify-between">
-                  <CardContent className="space-y-4 pt-6">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex flex-wrap gap-1">
-                          {problem.topics.slice(0, 2).map((topic) => (
-                            <Badge key={topic} variant="secondary" className="text-[10px]">
-                              {topic}
-                            </Badge>
-                          ))}
-                          {problem.topics.length > 2 && (
-                            <Badge variant="neutral" className="text-[10px]">
-                              +{problem.topics.length - 2}
-                            </Badge>
+              {filteredProblems.map((problem) => {
+                const problemIdStr = problem.id.toString();
+                const statusObj = problemStatuses[problemIdStr];
+                const status = statusObj?.status || "Not Started";
+
+                return (
+                  <Card key={problem.id} className="flex flex-col justify-between">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                      <div className="space-y-1">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Problem</span>
+                        <CardTitle className="text-sm">{problem.title}</CardTitle>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Platform badge */}
+                        <Badge variant="secondary" className="text-xs">
+                          {problem.platform.charAt(0).toUpperCase() + problem.platform.slice(1)}
+                        </Badge>
+                        {/* Difficulty badge */}
+                        <Badge variant={getDifficultyVariant(problem.difficulty)} className="text-xs">
+                          {problem.difficulty}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4 pt-6 flex-1">
+                      {/* Topics and Title */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="flex flex-wrap gap-1">
+                            {problem.topics.slice(0, 2).map((topic) => (
+                              <Badge key={topic} variant="secondary" className="text-[10px]">
+                                {topic}
+                              </Badge>
+                            ))}
+                            {problem.topics.length > 2 && (
+                              <Badge variant="neutral" className="text-[10px]">
+                                +{problem.topics.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                          <h3 className="text-base font-bold text-slate-800">{problem.title}</h3>
+                        </div>
+                        {/* Status badge */}
+                        <Badge variant={getStatusVariant(status)} className="shrink-0 text-xs">
+                          {status}
+                        </Badge>
+                      </div>
+
+                      {/* Estimated time and code snippet */}
+                      <div className="p-3 rounded-xl bg-slate-900 text-slate-400 font-mono text-xs overflow-hidden">
+                        <p className="truncate">
+                          {`// ${selectedLanguage} - ${problem.title}`}
+                        </p>
+                        <p className="text-slate-500 mt-0.5">
+                          {`// Time: ${problem.complexity.time}  Space: ${problem.complexity.space}`}
+                        </p>
+                      </div>
+
+                      {/* Details and buttons */}
+                      <div className="flex justify-between items-center pt-1">
+                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                          <span>Estimated: {problem.estimated}</span>
+                        </div>
+                        <div className="flex gap-2 space-x-2">
+                          {status === "Not Started" && (
+                            <Button
+                              size="sm"
+                              onClick={() => startPractice(problem.id)}
+                              className="cursor-pointer"
+                            >
+                              Start Practice
+                            </Button>
+                          )}
+                          {status === "In Progress" && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => markCompleted(problem.id)}
+                                variant="primary"
+                                className="cursor-pointer"
+                              >
+                                Mark Completed
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => handleReviewClick(problem.id)}
+                                variant="secondary"
+                                className="cursor-pointer"
+                              >
+                                Review
+                              </Button>
+                            </>
+                          )}
+                          {status === "Completed" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleReviewClick(problem.id)}
+                              variant="secondary"
+                              className="cursor-pointer"
+                            >
+                              Review
+                            </Button>
                           )}
                         </div>
-                        <h3 className="text-base font-bold text-slate-800">{problem.title}</h3>
                       </div>
-                      <Badge variant={getDifficultyVariant(problem.difficulty)} className="shrink-0">
-                        {problem.difficulty}
-                      </Badge>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-900 text-slate-400 font-mono text-xs overflow-hidden">
-                      <p className="truncate">
-                        {`// ${selectedLanguage} - ${problem.title}`}
-                      </p>
-                      <p className="text-slate-500 mt-0.5">
-                        {`// Time: ${problem.complexity.time}  Space: ${problem.complexity.space}`}
-                      </p>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-1">
-                      <span className="text-xs text-slate-400">Estimated: {problem.estimated}</span>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSolveClick(problem.id)}
-                        className="cursor-pointer"
-                      >
-                        Solve Challenge
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <Card>
