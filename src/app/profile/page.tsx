@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchableSingleSelect, SearchableMultiSelect } from "@/components/ui/MultiSelect";
-import { useAppContext, HistoryItem } from "@/context/AppContext";
-import { Award, Code2, BookOpen, Layers, Database, Download, Upload, RefreshCw } from "lucide-react";
+import { useAppContext, HistoryItem, RecommendationConfig } from "@/context/AppContext";
+import { Award, Code2, BookOpen, Layers, Database, Download, Upload, RefreshCw, Settings } from "lucide-react";
 
 const languagesList = ["Java", "C++", "Python", "JavaScript", "C#", "Go", "Rust"];
 
@@ -60,6 +60,8 @@ interface ProfileFormProps {
   resetProfile: () => void;
   importProfile: (lang: string, topics: string[], history: HistoryItem[]) => void;
   history: HistoryItem[];
+  updateRecommendationConfig: (config: Partial<RecommendationConfig>) => void;
+  recommendationConfig: RecommendationConfig;
 }
 
 function ProfileForm({
@@ -68,10 +70,13 @@ function ProfileForm({
   saveProfile,
   resetProfile,
   importProfile,
-  history
+  history,
+  updateRecommendationConfig,
+  recommendationConfig
 }: ProfileFormProps) {
   const [localLanguage, setLocalLanguage] = React.useState<string>(selectedLanguage);
   const [localTopics, setLocalTopics] = React.useState<string[]>(selectedTopics);
+  const [localConfig, setLocalConfig] = React.useState<import("@/context/AppContext").RecommendationConfig>(recommendationConfig);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -82,6 +87,7 @@ function ProfileForm({
   const handleCancel = () => {
     setLocalLanguage(selectedLanguage);
     setLocalTopics(selectedTopics);
+    setLocalConfig(recommendationConfig);
   };
 
   const handleExport = () => {
@@ -150,6 +156,10 @@ function ProfileForm({
     }
   };
 
+  const handleSaveConfig = () => {
+    updateRecommendationConfig(localConfig);
+  };
+
   return (
     <div className="space-y-8 select-none">
       {/* Page Header */}
@@ -211,6 +221,141 @@ function ProfileForm({
                 placeholder="Search and select DSA topics..."
               />
             </CardContent>
+          </Card>
+
+          {/* Section 3: Recommendation Configuration */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600">
+                  <Settings className="w-4.5 h-4.5" />
+                </div>
+                <CardTitle className="text-base">Section 3: Recommendation Settings</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                Configure how the AI coach recommends problems based on your preferences.
+              </p>
+
+              {/* Platform Selection */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 mb-1">Platforms</p>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={localConfig.platforms.includes("leetcode")}
+                      onChange={(e) => {
+                        const platforms = [...localConfig.platforms];
+                        if (e.target.checked) {
+                          if (!platforms.includes("leetcode")) platforms.push("leetcode");
+                        } else {
+                          const index = platforms.indexOf("leetcode");
+                          if (index > -1) platforms.splice(index, 1);
+                        }
+                        setLocalConfig(prev => ({ ...prev, platforms }));
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                    />
+                    <span>LeetCode</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={localConfig.platforms.includes("codeforces")}
+                      onChange={(e) => {
+                        const platforms = [...localConfig.platforms];
+                        if (e.target.checked) {
+                          if (!platforms.includes("codeforces")) platforms.push("codeforces");
+                        } else {
+                          const index = platforms.indexOf("codeforces");
+                          if (index > -1) platforms.splice(index, 1);
+                        }
+                        setLocalConfig(prev => ({ ...prev, platforms }));
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                    />
+                    <span>Codeforces</span>
+                  </label>
+                </div>
+                {localConfig.platforms.length === 0 && (
+                  <p className="text-xs text-red-500 mt-1">Please select at least one platform</p>
+                )}
+              </div>
+
+              {/* Questions per Platform */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 mb-1">Questions per Platform</p>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-slate-700">
+                    Count:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={localConfig.countPerPlatform}
+                    onChange={(e) => {
+                      const value = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
+                      setLocalConfig(prev => ({ ...prev, countPerPlatform: value }));
+                    }}
+                    className="w-20 px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50"
+                  />
+                </div>
+              </div>
+
+              {/* Difficulty Filter */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 mb-1">Difficulty Filter</p>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-slate-700">
+                    Level:
+                  </label>
+                  <select
+                    value={localConfig.difficulty}
+                    onChange={(e) => setLocalConfig(prev => ({ ...prev, difficulty: e.target.value as "Easy" | "Medium" | "Hard" | "Mixed" }))}
+                    className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50"
+                  >
+                    <option value="Mixed">Mixed (All Difficulties)</option>
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Maximum Total Questions */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-slate-500 mb-1">Maximum Total Questions</p>
+                <div className="flex items-center gap-3">
+                  <label className="text-sm text-slate-700">
+                    Limit:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={localConfig.totalLimit}
+                    onChange={(e) => {
+                      const value = Math.max(1, Math.min(50, parseInt(e.target.value) || 10));
+                      setLocalConfig(prev => ({ ...prev, totalLimit: value }));
+                    }}
+                    className="w-20 px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50"
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={handleSaveConfig}
+                  className="btn-primary px-4 py-2 text-sm font-medium rounded-lg"
+                >
+                  Save Configuration
+                </button>
+              </div>
+            </CardFooter>
           </Card>
 
           {/* Section 4: Cancel and Save Profile buttons */}
@@ -335,7 +480,7 @@ function ProfileForm({
 }
 
 export default function Profile() {
-  const { selectedLanguage, selectedTopics, saveProfile, resetProfile, importProfile, history } = useAppContext();
+  const { selectedLanguage, selectedTopics, saveProfile, resetProfile, importProfile, history, updateRecommendationConfig, recommendationConfig } = useAppContext();
 
   return (
     <ProfileForm
@@ -346,6 +491,8 @@ export default function Profile() {
       resetProfile={resetProfile}
       importProfile={importProfile}
       history={history}
+      updateRecommendationConfig={updateRecommendationConfig}
+      recommendationConfig={recommendationConfig}
     />
   );
 }

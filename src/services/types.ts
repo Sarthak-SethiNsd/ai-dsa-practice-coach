@@ -23,8 +23,10 @@ export interface Problem {
 
 export interface RecommendationRequest {
   topics: Topic[];
-  difficulty?: Difficulty;
-  limit?: number;
+  platforms: Platform[];
+  countPerPlatform: number;
+  difficulty?: Difficulty | 'Mixed';
+  totalLimit?: number;
 }
 
 export interface ProblemService {

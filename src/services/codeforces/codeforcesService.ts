@@ -1189,16 +1189,16 @@ export class CodeforcesService implements ProblemService {
       );
     }
 
-    // Filter by difficulty if provided
-    if (request.difficulty) {
+    // Filter by difficulty if provided (and not Mixed)
+    if (request.difficulty && request.difficulty !== 'Mixed') {
       filtered = filtered.filter(problem =>
         problem.difficulty === request.difficulty
       );
     }
 
-    // Apply limit if provided
-    if (request.limit && request.limit > 0) {
-      filtered = filtered.slice(0, request.limit);
+    // Apply limit per platform
+    if (request.countPerPlatform && request.countPerPlatform > 0) {
+      filtered = filtered.slice(0, request.countPerPlatform);
     }
 
     return filtered;

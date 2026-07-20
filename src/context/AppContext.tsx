@@ -4,7 +4,7 @@ import * as React from "react";
 import { LeetCodeService } from "@/services/leetcode/leetcodeService";
 import { CodeforcesService } from "@/services/codeforces/codeforcesService";
 import { RecommendationEngine } from "@/services/recommendationEngine";
-import { RecommendationRequest } from "@/services/types";
+import { RecommendationRequest, ProblemService } from "@/services/types";
 
 export interface Problem {
   id: number;
@@ -44,9 +44,11 @@ export interface HistoryItem {
   status: "Solved" | "Incomplete";
 }
 
-export interface ToastState {
-  show: boolean;
-  message: string;
+export interface RecommendationConfig {
+  platforms: ("leetcode" | "codeforces")[];
+  countPerPlatform: number;
+  difficulty: "Easy" | "Medium" | "Hard" | "Mixed";
+  totalLimit: number;
 }
 
 interface AppContextType {
@@ -56,33 +58,66 @@ interface AppContextType {
   history: HistoryItem[];
   selectedReviewProblem: Problem | null;
   toast: ToastState;
+  recommendationConfig: RecommendationConfig;
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
   resetProfile: () => void;
   importProfile: (language: string, topics: string[], history: HistoryItem[]) => void;
+  updateRecommendationConfig: (config: Partial<RecommendationConfig>) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
+// Helper to determine active platforms based on config
+const getActivePlatforms = (config: RecommendationConfig): ("leetcode" | "codeforces")[] => {
+  if (config.platforms.includes("leetcode") && config.platforms.includes("codeforces")) {
+    return ["leetcode", "codeforces"];
+  }
+  if (config.platforms.includes("leetcode")) {
+    return ["leetcode"];
+  }
+  if (config.platforms.includes("codeforces")) {
+    return ["codeforces"];
+  }
+  // Default to both if none specified
+  return ["leetcode", "codeforces"];
+};
+
+// Helper to determine if difficulty is "Mixed" (no filter)
+const isMixedDifficulty = (difficulty: string): boolean => {
+  return difficulty === "Mixed";
+};
+
+// Helper to determine active difficulty (undefined if Mixed)
+const getActiveDifficulty = (config: RecommendationConfig): undefined | "Easy" | "Medium" | "Hard" => {
+  return isMixedDifficulty(config.difficulty) ? undefined : config.difficulty as "Easy" | "Medium" | "Hard";
+};
+
 // Helper to determine active problems matching selected topics
-const getFilteredProblems = async (topics: string[]): Promise<Problem[]> => {
+const getFilteredProblems = async (topics: string[], config: RecommendationConfig): Promise<Problem[]> => {
   if (topics.length === 0) return [];
 
-  // Initialize services
-  const leetcodeService = new LeetCodeService();
-  const codeforcesService = new CodeforcesService();
+  // Initialize services based on config
+  const services: ProblemService[] = [];
 
-  // Create recommendation engine with both services
-  const recommendationEngine = new RecommendationEngine([
-    leetcodeService,
-    codeforcesService
-  ]);
+  if (config.platforms.includes("leetcode")) {
+    services.push(new LeetCodeService());
+  }
+  if (config.platforms.includes("codeforces")) {
+    services.push(new CodeforcesService());
+  }
 
-  // Create request matching the original filtering logic
+  // Create recommendation engine with active services
+  const recommendationEngine = new RecommendationEngine(services);
+
+  // Create request matching the current filtering logic
   const request: RecommendationRequest = {
     topics: topics,
-    limit: 50 // High limit to get all matching problems
+    platforms: getActivePlatforms(config),
+    countPerPlatform: config.countPerPlatform,
+    difficulty: getActiveDifficulty(config),
+    totalLimit: config.totalLimit
   };
 
   // Get recommendations from all platforms
@@ -90,8 +125,8 @@ const getFilteredProblems = async (topics: string[]): Promise<Problem[]> => {
 };
 
 // Generate static history items using standard mock problems
-const getMockHistory = async (topics: string[]): Promise<HistoryItem[]> => {
-  const filtered = await getFilteredProblems(topics);
+const getMockHistory = async (topics: string[], config: RecommendationConfig): Promise<HistoryItem[]> => {
+  const filtered = await getFilteredProblems(topics, config);
   if (filtered.length === 0) return [];
 
   // Return history mappings (first two problems as in original)
@@ -131,6 +166,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [selectedReviewProblem, setSelectedReviewProblem] = React.useState<Problem | null>(null);
   const [toast, setToast] = React.useState<ToastState>({ show: false, message: "" });
+  const [recommendationConfig, setRecommendationConfig] = React.useState<RecommendationConfig>({
+    platforms: ["leetcode", "codeforces"],
+    countPerPlatform: 5,
+    difficulty: "Mixed",
+    totalLimit: 10
+  });
 
   // Track mount status for safe state updates
   const mountedRef = React.useRef(false);
@@ -141,14 +182,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []); // Empty deps array is fine here since we're just setting a ref
 
-  // Memoize problems based on selectedTopics
+  // Memoize problems based on selectedTopics and recommendationConfig
   const [problems, setProblems] = React.useState<Problem[]>([]);
 
   React.useEffect(() => {
     let isMounted = true;
 
     const loadProblems = async () => {
-      const fetchedProblems = await getFilteredProblems(selectedTopics);
+      const fetchedProblems = await getFilteredProblems(selectedTopics, recommendationConfig);
       if (isMounted) {
         setProblems(fetchedProblems);
       }
@@ -159,7 +200,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isMounted = false;
     };
-  }, [selectedTopics]);
+  }, [selectedTopics, recommendationConfig]);
 
   // Synchronise state from localStorage on first render
   React.useEffect(() => {
@@ -167,6 +208,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const savedTopics = localStorage.getItem("dsa_topics");
     const savedHistory = localStorage.getItem("dsa_history");
     const savedReviewId = localStorage.getItem("dsa_review_problem_id");
+    const savedConfig = localStorage.getItem("dsa_recommendation_config");
 
     let activeTopics = [
       "Arrays",
@@ -191,13 +233,38 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("Failed to parse saved history", e);
       }
     } else {
-      // Initialize history with default topics
-      getMockHistory(activeTopics).then(h => {
+      // Initialize history with default topics and default config
+      const defaultConfig: RecommendationConfig = {
+        platforms: ["leetcode", "codeforces"],
+        countPerPlatform: 5,
+        difficulty: "Mixed",
+        totalLimit: 10
+      };
+      getMockHistory(activeTopics, defaultConfig).then(h => {
         if (mountedRef.current) {
           setHistory(h);
           localStorage.setItem("dsa_history", JSON.stringify(h));
         }
       });
+    }
+
+    let activeConfig: RecommendationConfig = {
+      platforms: ["leetcode", "codeforces"],
+      countPerPlatform: 5,
+      difficulty: "Mixed",
+      totalLimit: 10
+    };
+    if (savedConfig) {
+      try {
+        activeConfig = JSON.parse(savedConfig);
+        // Ensure all required fields are present
+        if (!activeConfig.platforms) activeConfig.platforms = ["leetcode", "codeforces"];
+        if (activeConfig.countPerPlatform === undefined) activeConfig.countPerPlatform = 5;
+        if (!activeConfig.difficulty) activeConfig.difficulty = "Mixed";
+        if (activeConfig.totalLimit === undefined) activeConfig.totalLimit = 10;
+      } catch (e) {
+        console.error("Failed to parse saved recommendation config", e);
+      }
     }
 
     const activeReview: Problem | null = null;
@@ -218,6 +285,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       if (activeReview) {
         setSelectedReviewProblem(activeReview);
       }
+      setRecommendationConfig(activeConfig);
     }, 0);
 
     return () => clearTimeout(timer);
@@ -253,16 +321,25 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       "Recursion"
     ];
 
-    getMockHistory(defaultTopics).then(defaultHistory => {
+    const defaultConfig: RecommendationConfig = {
+      platforms: ["leetcode", "codeforces"],
+      countPerPlatform: 5,
+      difficulty: "Mixed",
+      totalLimit: 10
+    };
+
+    getMockHistory(defaultTopics, defaultConfig).then(defaultHistory => {
       setSelectedLanguage("JavaScript");
       setSelectedTopics(defaultTopics);
       setHistory(defaultHistory);
       setSelectedReviewProblem(null);
+      setRecommendationConfig(defaultConfig);
 
       localStorage.removeItem("dsa_language");
       localStorage.removeItem("dsa_topics");
       localStorage.removeItem("dsa_history");
       localStorage.removeItem("dsa_review_problem_id");
+      localStorage.removeItem("dsa_recommendation_config");
 
       setToast({
         show: true,
@@ -288,6 +365,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+  const updateRecommendationConfig = (config: Partial<RecommendationConfig>) => {
+    setRecommendationConfig(prev => {
+      const newConfig = { ...prev, ...config };
+      localStorage.setItem("dsa_recommendation_config", JSON.stringify(newConfig));
+      return newConfig;
+    });
+  };
+
   const clearToast = () => {
     setToast((prev: ToastState) => ({ ...prev, show: false }));
   };
@@ -301,11 +386,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         history,
         selectedReviewProblem,
         toast,
+        recommendationConfig,
         saveProfile,
         selectReviewProblem,
         clearToast,
         resetProfile,
-        importProfile
+        importProfile,
+        updateRecommendationConfig
       }}
     >
       {children}

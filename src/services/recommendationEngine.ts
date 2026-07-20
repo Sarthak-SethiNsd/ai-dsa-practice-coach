@@ -13,7 +13,7 @@ export class RecommendationEngine {
 
   /**
    * Get problem recommendations from all registered services
-   * @param request - The recommendation request containing topics, difficulty, and limit
+   * @param request - The recommendation request containing topics, platforms, count per platform, difficulty, and total limit
    * @returns Promise resolving to array of recommended problems
    */
   async getRecommendations(request: RecommendationRequest): Promise<Problem[]> {
@@ -38,6 +38,11 @@ export class RecommendationEngine {
 
       // Sort by ID for consistent ordering
       uniqueProblems.sort((a, b) => a.id - b.id);
+
+      // Apply total limit if specified
+      if (request.totalLimit && request.totalLimit > 0) {
+        return uniqueProblems.slice(0, request.totalLimit);
+      }
 
       return uniqueProblems;
     } catch (error) {
