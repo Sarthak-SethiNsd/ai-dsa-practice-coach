@@ -56,6 +56,8 @@ interface AppContextType {
     startedAt?: string; // ISO timestamp
     completedAt?: string; // ISO timestamp
   }>;
+  // Notes
+  notes: Record<string, string>; // problemId -> note
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
@@ -65,6 +67,9 @@ interface AppContextType {
   // Problem tracking functions
   startPractice: (problemId: number) => void;
   markCompleted: (problemId: number) => void;
+  // Notes functions
+  updateNote: (problemId: number, note: string) => void;
+  deleteNote: (problemId: number) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -178,6 +183,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     startedAt?: string;
     completedAt?: string;
   }>>({});
+  // Notes tracking: maps problemId to note string
+  const [notes, setNotes] = React.useState<Record<string, string>>({});
 
   // Track mount status for safe state updates
   const mountedRef = React.useRef(false);
@@ -216,6 +223,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const savedReviewId = localStorage.getItem("dsa_review_problem_id");
     const savedConfig = localStorage.getItem("dsa_recommendation_config");
     const savedProblemStatuses = localStorage.getItem("dsa_problem_status");
+    const savedNotes = localStorage.getItem("dsa_notes");
 
     let activeTopics = [
       "Arrays",
@@ -287,6 +295,15 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
+    let activeNotes: Record<string, string> = {};
+    if (savedNotes) {
+      try {
+        activeNotes = JSON.parse(savedNotes);
+      } catch (e) {
+        console.error("Failed to parse saved notes", e);
+      }
+    }
+
     const activeReview: Problem | null = null;
     if (savedReviewId) {
       // We'll fetch the problem when needed since we don't have all problems loaded yet
@@ -307,6 +324,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
       setRecommendationConfig(activeConfig);
       setProblemStatuses(activeProblemStatuses);
+      setNotes(activeNotes);
     }, 0);
 
     return () => clearTimeout(timer);
@@ -316,6 +334,16 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   React.useEffect(() => {
     localStorage.setItem("dsa_problem_status", JSON.stringify(problemStatuses));
   }, [problemStatuses]);
+
+  // Persist notes to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem("dsa_notes", JSON.stringify(notes));
+  }, [notes]);
+
+  // Persist history to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem("dsa_history", JSON.stringify(history));
+  }, [history]);
 
   const saveProfile = (language: string, topics: string[]) => {
     setSelectedLanguage(language);
@@ -361,6 +389,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       setSelectedReviewProblem(null);
       setRecommendationConfig(defaultConfig);
       setProblemStatuses({}); // Reset problem statuses
+      setNotes({}); // Reset notes
 
       localStorage.removeItem("dsa_language");
       localStorage.removeItem("dsa_topics");
@@ -368,6 +397,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem("dsa_review_problem_id");
       localStorage.removeItem("dsa_recommendation_config");
       localStorage.removeItem("dsa_problem_status");
+      localStorage.removeItem("dsa_notes");
 
       setToast({
         show: true,
@@ -455,10 +485,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         status: "Solved"
       };
       setHistory(prev => [newHistoryItem, ...prev]); // Add to the beginning
-      // Note: history persistence is handled by the useEffect that watches history?
-      // Actually, we persist history in the same way as other state?
-      // We don't have a useEffect for history persistence yet.
-      // We'll add it below for consistency.
     }
   };
 
@@ -466,10 +492,26 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setToast((prev: ToastState) => ({ ...prev, show: false }));
   };
 
-  // Persist history to localStorage whenever it changes
-  React.useEffect(() => {
-    localStorage.setItem("dsa_history", JSON.stringify(history));
-  }, [history]);
+  const updateNote = (problemId: number, note: string) => {
+    setNotes(prev => {
+      const newNotes = { ...prev };
+      if (note.trim() === "") {
+        // If note is empty, remove it
+        delete newNotes[problemId.toString()];
+      } else {
+        newNotes[problemId.toString()] = note;
+      }
+      return newNotes;
+    });
+  };
+
+  const deleteNote = (problemId: number) => {
+    setNotes(prev => {
+      const newNotes = { ...prev };
+      delete newNotes[problemId.toString()];
+      return newNotes;
+    });
+  };
 
   return (
     <AppContext.Provider
@@ -482,6 +524,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         toast,
         recommendationConfig,
         problemStatuses,
+        notes,
         saveProfile,
         selectReviewProblem,
         clearToast,
@@ -489,7 +532,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         importProfile,
         updateRecommendationConfig,
         startPractice,
-        markCompleted
+        markCompleted,
+        updateNote,
+        deleteNote
       }}
     >
       {children}

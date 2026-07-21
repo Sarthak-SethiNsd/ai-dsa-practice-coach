@@ -6,10 +6,24 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAppContext } from "@/context/AppContext";
-import { MessageSquare, Code2, Lightbulb, ArrowLeft } from "lucide-react";
+import {
+  MessageSquare,
+  Code2,
+  Lightbulb,
+  ArrowLeft,
+  Edit2,
+  Trash2,
+  Save
+} from "lucide-react";
 
 export default function Review() {
-  const { selectedReviewProblem, selectedLanguage } = useAppContext();
+  const {
+    selectedReviewProblem,
+    selectedLanguage,
+    notes,
+    updateNote,
+    deleteNote
+  } = useAppContext();
 
   // Fallback: no problem selected
   if (!selectedReviewProblem) {
@@ -53,6 +67,9 @@ export default function Review() {
   }
 
   const problem = selectedReviewProblem;
+  const problemIdStr = problem.id.toString();
+  const currentNote = notes[problemIdStr] || "";
+
   // Pick the solution for the current selected language, fallback to TypeScript, then first available
   const solutionCode =
     problem.solutions[selectedLanguage] ??
@@ -64,6 +81,21 @@ export default function Review() {
     if (difficulty === "Easy") return "success" as const;
     if (difficulty === "Medium") return "primary" as const;
     return "warning" as const;
+  };
+
+  const handleSaveNote = (_e: React.FormEvent<HTMLFormElement>) => {
+    _e.preventDefault();
+    const textarea = document.getElementById(`note-textarea-${problem.id}`) as HTMLTextAreaElement | null;
+    if (textarea) {
+      const noteText = textarea.value;
+      updateNote(problem.id, noteText);
+      // We intentionally do not clear the textarea after saving to allow for further edits.
+    }
+  };
+
+  const handleDeleteNote = () => {
+    deleteNote(problem.id);
+    // Optionally, we could clear the textarea, but the note state will update and the textarea will be cleared via the value prop.
   };
 
   return (
@@ -92,7 +124,7 @@ export default function Review() {
 
       {/* Review Content Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Left column: Code Snippet */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -187,6 +219,47 @@ export default function Review() {
             </CardContent>
           </Card>
 
+          {/* Personal Notes Card */}
+          <Card className="border-slate-200 bg-slate-50">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <Edit2 className="w-4 h-4 text-slate-600" />
+                </div>
+                <CardTitle className="text-base">Personal Notes</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                {currentNote.trim() ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleDeleteNote}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </Button>
+                ) : null}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <form onSubmit={handleSaveNote} className="space-y-2">
+                <textarea
+                  id={`note-textarea-${problem.id}`}
+                  value={currentNote}
+                  onChange={() => {
+                    // We don't update state here to avoid excessive re-renders; we'll update on submit
+                  }}
+                  placeholder="Add your personal notes, insights, or questions about this problem..."
+                  className="w-full min-h-[100px] resize-y border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 bg-white"
+                  rows={4}
+                />
+                <button type="submit" className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium transition-colors hover:bg-sky-50/50">
+                  Save Note
+                  <Save className="h-4 w-4" />
+                </button>
+              </form>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="pt-5 space-y-3">
               <p className="text-xs text-slate-500 leading-relaxed font-medium">
@@ -198,7 +271,6 @@ export default function Review() {
             </CardContent>
           </Card>
         </div>
-
       </div>
     </div>
   );
