@@ -1,8 +1,10 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { useAppContext } from "@/context/AppContext";
+import { GlobalLoading } from "@/components/ui/GlobalLoading";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,11 +13,14 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const { loading } = useAppContext();
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50/50">
       {/* Top Navbar */}
       <Navbar onMenuClick={() => setIsMobileOpen(true)} />
+      {/* Global Loading Overlay */}
+      {loading && <GlobalLoading />}
 
       {/* Main Content Area */}
       <div className="flex-1 flex relative">

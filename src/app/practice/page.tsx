@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAppContext } from "@/context/AppContext";
 import { Search, Filter, BookOpen } from "lucide-react";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 export default function Practice() {
   const router = useRouter();
@@ -17,7 +18,9 @@ export default function Practice() {
     selectReviewProblem,
     problemStatuses,
     startPractice,
-    markCompleted
+    markCompleted,
+    error,
+    retryProblems
   } = useAppContext();
   const [searchQuery, setSearchQuery] = React.useState("");
 
@@ -54,8 +57,14 @@ export default function Practice() {
         </p>
       </div>
 
-      {/* No topics empty state */}
-      {selectedTopics.length === 0 ? (
+      {/* Error state */}
+      {error ? (
+        <Card>
+          <CardContent className="py-12">
+            <ErrorState message={error} onRetry={retryProblems} />
+          </CardContent>
+        </Card>
+      ) : selectedTopics.length === 0 ? (
         <Card>
           <CardContent className="py-16 flex flex-col items-center text-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-400">

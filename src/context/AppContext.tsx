@@ -55,6 +55,9 @@ interface AppContextType {
   selectedReviewProblem: Problem | null;
   toast: ToastState;
   recommendationConfig: RecommendationConfig;
+  // Loading states
+  loading: boolean;
+  error: string | null;
   // Problem tracking
   problemStatuses: Record<string, {
     status: "Not Started" | "In Progress" | "Completed";
@@ -72,6 +75,8 @@ interface AppContextType {
   // Problem tracking functions
   startPractice: (problemId: number) => void;
   markCompleted: (problemId: number) => void;
+  // Problem refetch / retry function
+  retryProblems: () => void;
   // Notes functions
   updateNote: (problemId: number, note: string) => void;
   deleteNote: (problemId: number) => void;
@@ -213,14 +218,38 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Memoize problems based on selectedTopics and recommendationConfig
   const [problems, setProblems] = React.useState<Problem[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = React.useState(0);
+
+  const retryProblems = React.useCallback(() => {
+    setReloadTrigger(prev => prev + 1);
+  }, []);
 
   React.useEffect(() => {
     let isMounted = true;
 
     const loadProblems = async () => {
-      const fetchedProblems = await getFilteredProblems(selectedTopics, recommendationConfig);
       if (isMounted) {
-        setProblems(fetchedProblems);
+        setLoading(true);
+        setError(null);
+      }
+      try {
+        const fetchedProblems = await getFilteredProblems(selectedTopics, recommendationConfig);
+        if (isMounted) {
+          setProblems(fetchedProblems);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : "Failed to load problems");
+          setLoading(false);
+          // Show toast for error
+          setToast({
+            show: true,
+            message: "Failed to load problems. Please try again."
+          });
+        }
       }
     };
 
@@ -229,7 +258,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isMounted = false;
     };
-  }, [selectedTopics, recommendationConfig]);
+  }, [selectedTopics, recommendationConfig, reloadTrigger, setToast]);
 
   // Synchronise state from localStorage on first render
   React.useEffect(() => {
@@ -636,25 +665,28 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <AppContext.Provider
       value={{
-        selectedLanguage,
-        selectedTopics,
-        problems,
-        history,
-        selectedReviewProblem,
-        toast,
-        recommendationConfig,
-        problemStatuses,
-        notes,
-        saveProfile,
-        selectReviewProblem,
-        clearToast,
-        resetProfile,
-        importProfile,
-        updateRecommendationConfig,
-        startPractice,
-        markCompleted,
-        updateNote,
-        deleteNote
+        selectedLanguage: selectedLanguage,
+        selectedTopics: selectedTopics,
+        problems: problems,
+        history: history,
+        selectedReviewProblem: selectedReviewProblem,
+        toast: toast,
+        recommendationConfig: recommendationConfig,
+        loading: loading,
+        error: error,
+        problemStatuses: problemStatuses,
+        notes: notes,
+        saveProfile: saveProfile,
+        selectReviewProblem: selectReviewProblem,
+        clearToast: clearToast,
+        resetProfile: resetProfile,
+        importProfile: importProfile,
+        updateRecommendationConfig: updateRecommendationConfig,
+        startPractice: startPractice,
+        markCompleted: markCompleted,
+        retryProblems: retryProblems,
+        updateNote: updateNote,
+        deleteNote: deleteNote
       }}
     >
       {children}

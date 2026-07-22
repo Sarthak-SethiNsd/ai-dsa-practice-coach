@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/Badge";
 import { useAppContext } from "@/context/AppContext";
 import { useRouter } from "next/navigation";
 import { Trophy, BookOpen, Activity, ArrowUpRight } from "lucide-react";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 const TOTAL_TOPICS_COUNT = 41;
 
 export default function Home() {
-  const { selectedLanguage, selectedTopics, problems, history, selectReviewProblem } = useAppContext();
+  const { selectedLanguage, selectedTopics, problems, history, selectReviewProblem, error, retryProblems } = useAppContext();
   const router = useRouter();
 
   const completionPercentage = Math.round((selectedTopics.length / TOTAL_TOPICS_COUNT) * 100);
@@ -93,7 +94,9 @@ export default function Home() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4 flex-1">
-            {activeProblem ? (
+            {error ? (
+              <ErrorState message={error} onRetry={retryProblems} />
+            ) : activeProblem ? (
               <>
                 <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-1">
                   <div className="flex justify-between items-center gap-2">
