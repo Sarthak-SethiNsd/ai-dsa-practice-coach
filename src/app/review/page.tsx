@@ -49,7 +49,7 @@ export default function Review() {
               </p>
             </div>
             <div className="flex gap-3 mt-2">
-              <Link href="/practice" passHref legacyBehavior>
+              <Link href="/practice">
                 <Button variant="primary" size="sm">
                   Browse Practice
                 </Button>

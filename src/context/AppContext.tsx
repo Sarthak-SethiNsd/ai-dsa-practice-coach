@@ -4,7 +4,7 @@ import * as React from "react";
 import { LeetCodeService } from "@/services/leetcode/leetcodeService";
 import { CodeforcesService } from "@/services/codeforces/codeforcesService";
 import { RecommendationEngine } from "@/services/recommendationEngine";
-import { RecommendationRequest, ProblemService } from "@/services/types";
+import { RecommendationRequest, ProblemService, Platform } from "@/services/types";
 
 export interface Problem {
   id: number;
@@ -18,16 +18,21 @@ export interface Problem {
     space: string;
   };
   takeaways: string[];
-  platform: "leetcode" | "codeforces";
+  platform: Platform;
 }
 
 export interface HistoryItem {
   id: number;
   problemId: number;
   problemTitle: string;
-  date: string;
+  date: string; // Formatted date for display (started date)
   difficulty: "Easy" | "Medium" | "Hard";
   status: "Solved" | "Incomplete";
+  // New tracking fields
+  startedAt: string; // ISO timestamp
+  completedAt?: string; // ISO timestamp (only when completed)
+  platform: Platform;
+  topics: string[];
 }
 
 export interface ToastState {
@@ -135,14 +140,21 @@ const getMockHistory = async (topics: string[], config: RecommendationConfig): P
   if (filtered.length === 0) return [];
 
   // Return history mappings (first two problems as in original)
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+
   return [
     {
       id: 1,
       problemId: filtered[0].id,
       problemTitle: filtered[0].title,
-      date: "Jul 11, 2026",
+      date: formattedDate,
       difficulty: filtered[0].difficulty,
-      status: "Solved"
+      status: "Solved" as const,
+      startedAt: now.toISOString(),
+      completedAt: now.toISOString(),
+      platform: filtered[0].platform,
+      topics: filtered[0].topics
     },
     ...(filtered.length > 1
       ? [
@@ -150,9 +162,13 @@ const getMockHistory = async (topics: string[], config: RecommendationConfig): P
             id: 2,
             problemId: filtered[1].id,
             problemTitle: filtered[1].title,
-            date: "Jul 10, 2026",
+            date: formattedDate,
             difficulty: filtered[1].difficulty,
-            status: "Incomplete" as const
+            status: "Incomplete" as const,
+            startedAt: now.toISOString(),
+            completedAt: undefined,
+            platform: filtered[1].platform,
+            topics: filtered[1].topics
           }
         ]
       : [])
@@ -243,9 +259,41 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     let activeHistory: HistoryItem[] = [];
     if (savedHistory) {
       try {
-        activeHistory = JSON.parse(savedHistory);
+        const parsed = JSON.parse(savedHistory);
+        // Define type for old history items (without new fields)
+        interface OldHistoryItem {
+          id: number;
+          problemId: number;
+          problemTitle: string;
+          date: string;
+          difficulty: "Easy" | "Medium" | "Hard";
+          status: "Solved" | "Incomplete";
+        }
+        // Migrate old history items to new format
+        activeHistory = parsed.map((item: OldHistoryItem) => {
+          // Parse the existing date string (if valid) to get a Date object for startedAt fallback
+          let fallbackDate: Date;
+          try {
+            fallbackDate = new Date(item.date);
+            if (isNaN(fallbackDate.getTime())) {
+              fallbackDate = new Date();
+            }
+          } catch {
+            fallbackDate = new Date();
+          }
+
+          return {
+            ...item,
+            startedAt: fallbackDate.toISOString(),
+            completedAt: item.status === "Solved" ? fallbackDate.toISOString() : undefined,
+            platform: "leetcode", // default, we don't have the old platform
+            topics: [] // default, we don't have the old topics
+          } as HistoryItem;
+        });
       } catch (e) {
         console.error("Failed to parse saved history", e);
+        // Fallback to empty history if parsing fails
+        activeHistory = [];
       }
     } else {
       // Initialize history with default topics and default config
@@ -409,12 +457,36 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const importProfile = (language: string, topics: string[], importedHistory: HistoryItem[]) => {
     setSelectedLanguage(language);
     setSelectedTopics(topics);
-    setHistory(importedHistory);
+
+    // Convert imported history items to ensure they match current structure
+    const convertedHistory: HistoryItem[] = importedHistory.map((item): HistoryItem => {
+      // Parse the existing date string (if valid) to get a Date object for startedAt fallback
+      let fallbackDate: Date;
+      try {
+        fallbackDate = new Date(item.date);
+        if (isNaN(fallbackDate.getTime())) {
+          fallbackDate = new Date();
+        }
+      } catch {
+        fallbackDate = new Date();
+      }
+
+      return {
+        ...item,
+        // Ensure new fields exist with sensible defaults
+        startedAt: item.startedAt || fallbackDate.toISOString(),
+        completedAt: item.completedAt || (item.status === "Solved" ? fallbackDate.toISOString() : undefined),
+        platform: item.platform || "leetcode", // Default platform if missing
+        topics: Array.isArray(item.topics) ? item.topics : [] // Ensure topics is an array
+      };
+    });
+
+    setHistory(convertedHistory);
     setSelectedReviewProblem(null);
 
     localStorage.setItem("dsa_language", language);
     localStorage.setItem("dsa_topics", JSON.stringify(topics));
-    localStorage.setItem("dsa_history", JSON.stringify(importedHistory));
+    localStorage.setItem("dsa_history", JSON.stringify(convertedHistory));
     localStorage.removeItem("dsa_review_problem_id");
 
     setToast({
@@ -432,6 +504,33 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const startPractice = (problemId: number) => {
+    // Check if there's already a history item for this problem
+    const existingHistoryIndex = history.findIndex(item => item.problemId === problemId);
+    if (existingHistoryIndex === -1) {
+      // No existing history item, create one
+      const problem = problems.find(p => p.id === problemId);
+      if (problem) {
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+
+        const newHistoryItem: HistoryItem = {
+          id: Date.now(), // Generate unique ID
+          problemId: problem.id,
+          problemTitle: problem.title,
+          date: formattedDate,
+          difficulty: problem.difficulty,
+          status: "Incomplete",
+          startedAt: now.toISOString(),
+          completedAt: undefined,
+          platform: problem.platform,
+          topics: problem.topics
+        };
+
+        setHistory(prev => [newHistoryItem, ...prev]);
+      }
+    }
+
+    // Update problem status tracking (existing logic)
     setProblemStatuses(prev => {
       const newStatuses = { ...prev };
       const problemIdStr = problemId.toString();
@@ -454,6 +553,19 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const markCompleted = (problemId: number) => {
+    // Update history item status to Solved and set completion timestamp
+    setHistory(prev => prev.map(item =>
+      item.problemId === problemId
+        ? {
+            ...item,
+            status: "Solved",
+            completedAt: new Date().toISOString()
+            // Note: We keep the original 'date' field (started date) for display consistency
+          }
+        : item
+    ));
+
+    // Update problem status tracking (existing logic)
     setProblemStatuses(prev => {
       const newStatuses = { ...prev };
       const problemIdStr = problemId.toString();
@@ -473,18 +585,26 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       return newStatuses;
     });
 
-    // Add to history
+    // Add to history if not already present (should already be present from startPractice)
     const problem = problems.find(p => p.id === problemId);
     if (problem) {
-      const newHistoryItem: HistoryItem = {
-        id: Date.now(), // Simple ID generation
-        problemId: problem.id,
-        problemTitle: problem.title,
-        date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
-        difficulty: problem.difficulty,
-        status: "Solved"
-      };
-      setHistory(prev => [newHistoryItem, ...prev]); // Add to the beginning
+      // Check if we already added this problem to history in startPractice
+      const alreadyInHistory = history.some(item => item.problemId === problemId);
+      if (!alreadyInHistory) {
+        const newHistoryItem: HistoryItem = {
+          id: Date.now(), // Simple ID generation
+          problemId: problem.id,
+          problemTitle: problem.title,
+          date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+          difficulty: problem.difficulty,
+          status: "Solved",
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          platform: problem.platform,
+          topics: problem.topics
+        };
+        setHistory(prev => [newHistoryItem, ...prev]); // Add to the beginning
+      }
     }
   };
 

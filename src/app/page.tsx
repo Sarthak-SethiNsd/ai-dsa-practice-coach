@@ -1,19 +1,18 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useAppContext } from "@/context/AppContext";
+import { useRouter } from "next/navigation";
 import { Trophy, BookOpen, Activity, ArrowUpRight } from "lucide-react";
 
 const TOTAL_TOPICS_COUNT = 41;
 
 export default function Home() {
-  const router = useRouter();
   const { selectedLanguage, selectedTopics, problems, history, selectReviewProblem } = useAppContext();
+  const router = useRouter();
 
   const completionPercentage = Math.round((selectedTopics.length / TOTAL_TOPICS_COUNT) * 100);
   const activeProblem = problems.length > 0 ? problems[0] : null;
@@ -37,7 +36,6 @@ export default function Home() {
 
       {/* Grid Layout for Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        
         {/* Card 1: Today's Progress */}
         <Card className="flex flex-col h-full justify-between">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -60,23 +58,26 @@ export default function Home() {
                 </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                <div 
+                <div
                   className="bg-sky-600 h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${completionPercentage}%` }}
                 />
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Badge variant="primary">Language: {selectedLanguage}</Badge>
-              <Badge variant="secondary">Mastery: {completionPercentage}%</Badge>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Badge variant="primary">Language: {selectedLanguage}</Badge>
+                <Badge variant="secondary">Mastery: {completionPercentage}%</Badge>
+              </div>
             </div>
           </CardContent>
           <CardFooter>
-            <Link href="/profile" passHref legacyBehavior>
-              <Button variant="ghost" size="sm" className="w-full text-sky-600 hover:text-sky-700 font-semibold gap-1.5 cursor-pointer">
-                Configure Profile <ArrowUpRight className="w-4 h-4" />
-              </Button>
-            </Link>
+            <Button
+              href="/profile"
+              variant="ghost"
+              size="sm"
+              className="w-full text-sky-600 hover:text-sky-700 font-semibold gap-1.5 cursor-pointer"
+            >
+              Configure Profile <ArrowUpRight className="w-4 h-4" />
+            </Button>
           </CardFooter>
         </Card>
 
@@ -117,11 +118,14 @@ export default function Home() {
             )}
           </CardContent>
           <CardFooter>
-            <Link href="/practice" passHref legacyBehavior>
-              <Button variant="primary" size="sm" className="w-full font-semibold cursor-pointer">
-                Start Practice
-              </Button>
-            </Link>
+            <Button
+              href="/practice"
+              variant="primary"
+              size="sm"
+              className="w-full font-semibold cursor-pointer"
+            >
+              Start Practice
+            </Button>
           </CardFooter>
         </Card>
 
@@ -165,14 +169,16 @@ export default function Home() {
             )}
           </CardContent>
           <CardFooter>
-            <Link href="/history" passHref legacyBehavior>
-              <Button variant="secondary" size="sm" className="w-full font-semibold cursor-pointer">
-                View Full History
-              </Button>
-            </Link>
+            <Button
+              href="/history"
+              variant="secondary"
+              size="sm"
+              className="w-full font-semibold cursor-pointer"
+            >
+              View Full History
+            </Button>
           </CardFooter>
         </Card>
-
       </div>
     </div>
   );

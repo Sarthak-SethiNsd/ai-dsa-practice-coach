@@ -1,18 +1,17 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  Home, 
-  BookOpen, 
-  Cpu, 
-  History, 
-  User, 
-  Settings, 
-  ChevronLeft, 
-  ChevronRight, 
-  X 
+import {
+  Home,
+  BookOpen,
+  Cpu,
+  History,
+  User,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -43,7 +42,7 @@ export function Sidebar({
   const getLinkClasses = (href: string) => {
     const isActive = pathname === href;
     const base = "flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 select-none cursor-pointer";
-    
+
     if (isActive) {
       return `${base} bg-sky-50 text-sky-700 shadow-sm border border-sky-100/40`;
     }
@@ -85,15 +84,15 @@ export function Sidebar({
           {navigationItems.map((item) => {
             const Icon = item.icon;
             return (
-              <Link
+              <Button
                 key={item.href}
                 href={item.href}
-                onClick={onMobileClose}
+                onClick={isMobileOpen ? onMobileClose : undefined}
                 className={getLinkClasses(item.href)}
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 <span>{item.name}</span>
-              </Link>
+              </Button>
             );
           })}
         </nav>
@@ -108,7 +107,7 @@ export function Sidebar({
           {navigationItems.map((item) => {
             const Icon = item.icon;
             return (
-              <Link
+              <Button
                 key={item.href}
                 href={item.href}
                 className={getLinkClasses(item.href)}
@@ -116,7 +115,7 @@ export function Sidebar({
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 {!isCollapsed && <span className="truncate">{item.name}</span>}
-              </Link>
+              </Button>
             );
           })}
         </nav>

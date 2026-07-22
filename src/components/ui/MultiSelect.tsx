@@ -9,6 +9,7 @@ interface SingleSelectProps {
   selected: string;
   onChange: (val: string) => void;
   placeholder?: string;
+  optionToString?: (option: string) => string;
 }
 
 export function SearchableSingleSelect({
@@ -16,6 +17,7 @@ export function SearchableSingleSelect({
   selected,
   onChange,
   placeholder = "Select an option...",
+  optionToString,
 }: SingleSelectProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -43,7 +45,11 @@ export function SearchableSingleSelect({
         className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all duration-200 cursor-pointer"
       >
         <span className={selected ? "text-slate-800" : "text-slate-400"}>
-          {selected || placeholder}
+          {!selected && placeholder ? (
+            placeholder
+          ) : (
+            optionToString ? optionToString(selected) : selected
+          )}
         </span>
         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
       </button>
@@ -81,7 +87,7 @@ export function SearchableSingleSelect({
                         : "text-slate-650 hover:bg-slate-50 hover:text-slate-900"
                     }`}
                   >
-                    <span>{opt}</span>
+                    <span>{optionToString ? optionToString(opt) : opt}</span>
                     {isSelected && <Check className="h-4 w-4 text-sky-600" />}
                   </button>
                 );
@@ -102,6 +108,7 @@ interface MultiSelectProps {
   selected: string[];
   onChange: (val: string[]) => void;
   placeholder?: string;
+  optionToString?: (option: string) => string;
 }
 
 export function SearchableMultiSelect({
@@ -109,6 +116,7 @@ export function SearchableMultiSelect({
   selected,
   onChange,
   placeholder = "Select topics...",
+  optionToString,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -151,7 +159,7 @@ export function SearchableMultiSelect({
           onClick={() => setIsOpen(!isOpen)}
           className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-left text-sm font-semibold text-slate-800 shadow-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all duration-200 cursor-pointer"
         >
-          <span className="text-slate-400">{placeholder}</span>
+          <span className="text-slate-400">{optionToString ? optionToString(placeholder) : placeholder}</span>
           <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
         </button>
       </div>
@@ -164,12 +172,12 @@ export function SearchableMultiSelect({
               key={item}
               className="inline-flex items-center gap-1.5 bg-white border border-slate-200/80 rounded-full px-3 py-1 text-xs font-semibold text-slate-700 shadow-2xs transition-colors hover:border-slate-300"
             >
-              <span>{item}</span>
+              <span>{optionToString ? optionToString(item) : item}</span>
               <button
                 type="button"
                 onClick={() => removeOption(item)}
                 className="hover:bg-slate-100 rounded-full p-0.5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors cursor-pointer flex items-center justify-center"
-                aria-label={`Remove ${item}`}
+                aria-label={`Remove ${optionToString ? optionToString(item) : item}`}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -205,7 +213,7 @@ export function SearchableMultiSelect({
                   }}
                   className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-650 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
                 >
-                  <span>{opt}</span>
+                  <span>{optionToString ? optionToString(opt) : opt}</span>
                 </button>
               ))
             ) : (

@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAppContext } from "@/context/AppContext";
 import { Calendar, Search, ClipboardList } from "lucide-react";
-import Link from "next/link";
 
 export default function History() {
   const router = useRouter();
@@ -54,11 +53,14 @@ export default function History() {
                 Complete your first challenge to see your attempt log here.
               </p>
             </div>
-            <Link href="/practice" passHref legacyBehavior>
-              <Button variant="primary" size="sm" className="mt-2">
-                Start Practicing
-              </Button>
-            </Link>
+            <Button
+              href="/practice"
+              variant="primary"
+              size="sm"
+              className="mt-2"
+            >
+              Start Practicing
+            </Button>
           </CardContent>
         </Card>
       ) : (

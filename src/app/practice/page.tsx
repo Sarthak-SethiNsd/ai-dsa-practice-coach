@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -68,11 +67,14 @@ export default function Practice() {
                 Set up your knowledge profile to generate personalised coding challenges.
               </p>
             </div>
-            <Link href="/profile" passHref legacyBehavior>
-              <Button variant="primary" size="sm" className="mt-2">
-                Configure Profile
-              </Button>
-            </Link>
+            <Button
+              href="/profile"
+              variant="primary"
+              size="sm"
+              className="mt-2"
+            >
+              Configure Profile
+            </Button>
           </CardContent>
         </Card>
       ) : (

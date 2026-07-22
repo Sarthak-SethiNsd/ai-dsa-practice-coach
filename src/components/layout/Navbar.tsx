@@ -2,6 +2,7 @@ import * as React from "react";
 import { Menu, Bell, Compass } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
+
 interface NavbarProps {
   onMenuClick: () => void;
 }
