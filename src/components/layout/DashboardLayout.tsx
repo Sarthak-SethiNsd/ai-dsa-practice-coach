@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { useAppContext } from "@/context/AppContext";
 import { GlobalLoading } from "@/components/ui/GlobalLoading";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -12,7 +13,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>("dsa_sidebar_collapsed", false);
   const { loading } = useAppContext();
 
   return (
@@ -29,7 +30,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           isMobileOpen={isMobileOpen}
           onMobileClose={() => setIsMobileOpen(false)}
           isCollapsed={isCollapsed}
-          onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
+          onToggleCollapse={() => setIsCollapsed((prev) => !prev)}
         />
 
         {/* Dynamic page content container */}
