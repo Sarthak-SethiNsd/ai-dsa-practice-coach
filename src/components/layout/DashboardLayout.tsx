@@ -6,6 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { useAppContext } from "@/context/AppContext";
 import { GlobalLoading } from "@/components/ui/GlobalLoading";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
   const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>("dsa_sidebar_collapsed", false);
   const { loading } = useAppContext();
+  useKeyboardShortcuts();
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50/50">
