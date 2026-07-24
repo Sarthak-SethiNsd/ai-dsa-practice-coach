@@ -1,6 +1,6 @@
-import { Problem, RecommendationRequest, ProblemService } from '../types';
+import { Problem, RecommendationRequest, ProblemService, QuestionProvider, Platform } from '../types';
 
-// Mock LeetCode problems - using subset of existing mock problems
+// Mock LeetCode problems dataset
 const LEETCODE_PROBLEMS: Problem[] = [
   {
     id: 1,
@@ -20,17 +20,6 @@ const LEETCODE_PROBLEMS: Problem[] = [
   }
   return [];
 }`,
-      TypeScript: `function twoSum(nums: number[], target: number): number[] {
-  const map = new Map<number, number>();
-  for (let i = 0; i < nums.length; i++) {
-    const diff = target - nums[i];
-    if (map.has(diff)) {
-      return [map.get(diff)!, i];
-    }
-    map.set(nums[i], i);
-  }
-  return [];
-}`,
       Python: `def twoSum(nums: list[int], target: int) -> list[int]:
     num_map = {}
     for i, num in enumerate(nums):
@@ -38,83 +27,12 @@ const LEETCODE_PROBLEMS: Problem[] = [
         if diff in num_map:
             return [num_map[diff], i]
         num_map[num] = i
-    return []`,
-      "C++": `#include <vector>
-#include <unordered_map>
-
-std::vector<int> twoSum(std::vector<int>& nums, int target) {
-    std::unordered_map<int, int> map;
-    for (int i = 0; i < nums.size(); ++i) {
-        int diff = target - nums[i];
-        if (map.find(diff) != map.end()) {
-            return {map[diff], i};
-        }
-        map[nums[i]] = i;
-    }
-    return {};}`,
-      Java: `import java.util.HashMap;
-import java.util.Map;
-
-class Solution {
-    public int[] twoSum(int[] nums, int target) {
-        Map<Integer, Integer> map = new HashMap<>();
-        for (int i = 0; i < nums.length; i++) {
-            int diff = target - nums[i];
-            if (map.containsKey(diff)) {
-                return new int[] { map.get(diff), i };
-            }
-            map.put(nums[i], i);
-        }
-        return new int[] {};
-    }
-}`,
-      "C#": `using System.Collections.Generic;
-
-public class Solution {
-    public int[] TwoSum(int[] nums, int target) {
-        var map = new Dictionary<int, int>();
-        for (int i = 0; i < nums.Length; i++) {
-            int diff = target - nums[i];
-            if (map.ContainsKey(diff)) {
-                return new int[] { map[diff], i };
-            }
-            map[nums[i]] = i;
-        }
-        return new int[] {};
-    }
-}`,
-      Go: `func twoSum(nums []int, target int) []int {
-    mapStore := make(map[int]int)
-    for i, num := range nums {
-        diff := target - num
-        if val, ok := mapStore[diff]; ok {
-            return []int{val, i}
-        }
-        mapStore[num] = i
-    }
-    return nil
-}`,
-      Rust: `use std::collections::HashMap;
-
-pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {
-    let mut map = HashMap::new();
-    for (i, &num) in nums.iter().enumerate() {
-        let diff = target - num;
-        if let Some(&index) = map.get(&diff) {
-            return vec![index as i32, i as i32];
-        }
-        map.insert(num, i);
-    }
-    vec![]
-}`
+    return []`
     },
-    complexity: {
-      time: "O(N)",
-      space: "O(N)"
-    },
+    complexity: { time: "O(N)", space: "O(N)" },
     takeaways: [
       "Hashing is the primary method to optimize O(N^2) search problems to O(N).",
-      "Using a single-pass hash map keeps code readable and guarantees correctness in index matches."
+      "Using a single-pass hash map keeps code readable."
     ],
     platform: "leetcode"
   },
@@ -139,142 +57,11 @@ pub fn two_sum(nums: Vec<i32>, target: i32) -> Vec<i32> {
     }
   }
   return dp[m][n];
-}`,
-      TypeScript: `function longestCommonSubsequence(text1: string, text2: string): number {
-  const m = text1.length, n = text2.length;
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (text1[i - 1] === text2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-  return dp[m][n];
-}`,
-      Python: `def longestCommonSubsequence(text1: str, text2: str) -> int:
-    m, n = len(text1), len(text2)
-    dp = [[0] * (n + 1) for _ in range(m + 1)]
-
-    for i in range(1, m + 1):
-        for j in range(1, n + 1):
-            if text1[i - 1] == text2[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1
-            else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-
-    return dp[m][n]`,
-      "C++": `#include <string>
-#include <vector>
-#include <algorithm>
-
-int longestCommonSubsequence(std::string text1, std::string text2) {
-    int m = text1.length(), n = text2.length();
-    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1, 0));
-
-    for (int i = 1; i <= m; ++i) {
-        for (int j = 1; j <= n; ++j) {
-            if (text1[i - 1] == text2[j - 1]) {
-                dp[i][j] = dp[i - 1][j - 1] + 1;
-            } else {
-                dp[i][j] = std::max(dp[i - 1][j], dp[i][j - 1]);
-            }
-        }
-    }
-    return dp[m][n];
-}`,
-      Java: `import java.lang.Math;
-
-class Solution {
-    public int longestCommonSubsequence(String text1, String text2) {
-        int m = text1.length(), n = text2.length();
-        int[][] dp = new int[m + 1][n + 1];
-
-        for (int i = 1; i <= m; i++) {
-            for (int j = 1; j <= n; j++) {
-                if (text1.charAt(i - 1) == text2.charAt(j - 1)) {
-                    dp[i][j] = dp[i - 1][j - 1] + 1;
-                } else {
-                    dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-                }
-            }
-        }
-        return dp[m][n];
-    }
-}`,
-      "C#": `using System;
-
-public class Solution {
-    public int LongestCommonSubsequence(string text1, string text2) {
-        int m = text1.Length, n = text2.Length;
-        int[,] dp = new int[m + 1, n + 1];
-
-        for (int i = 1; i <= m; i++) {
-            for (int j = 1; j <= n; j++) {
-                if (text1[i - 1] == text2[j - 1]) {
-                    dp[i, j] = dp[i - 1, j - 1] + 1;
-                } else {
-                    dp[i, j] = Math.Max(dp[i - 1, j], dp[i, j - 1]);
-                }
-            }
-        }
-        return dp[m, n];
-    }
-}`,
-      Go: `func longestCommonSubsequence(text1 string, text2 string) int {
-    m, n := len(text1), len(text2)
-    dp := make([][]int, m+1)
-    for i := range dp {
-        dp[i] = make([]int, n+1)
-    }
-
-    for i := 1; i <= m; i++ {
-        for j := 1; j <= n; j++ {
-            if text1[i-1] == text2[j-1] {
-                dp[i][j] = dp[i-1][j-1] + 1
-            } else {
-                dp[i][j] = max(dp[i-1][j], dp[i][j-1])
-            }
-        }
-    }
-    return dp[m][n]
-}
-
-func max(a, b int) int {
-    if a > b { return a }
-    return b
-}`,
-      Rust: `use std::cmp::max;
-
-pub fn longest_common_subsequence(text1: String, text2: String) -> i32 {
-    let text1 = text1.as_bytes();
-    let text2 = text2.as_bytes();
-    let m = text1.len();
-    let n = text2.len();
-    let mut dp = vec![vec![0; n + 1]; m + 1];
-
-    for i in 1..=m {
-        for j in 1..=n {
-            if text1[i - 1] == text2[j - 1] {
-                dp[i][j] = dp[i - 1][j - 1] + 1;
-            } else {
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]);
-            }
-        }
-    }
-    dp[m][n]
 }`
     },
-    complexity: {
-      time: "O(M * N)",
-      space: "O(M * N)"
-    },
+    complexity: { time: "O(M * N)", space: "O(M * N)" },
     takeaways: [
-      "LCS is a grid DP problem. Keep track of matches recursively using previous subproblem solutions.",
-      "Can optimize space to O(N) by keeping track of only two rows at a time."
+      "LCS is a grid DP problem. Keep track of matches recursively using previous subproblem solutions."
     ],
     platform: "leetcode"
   },
@@ -286,140 +73,16 @@ pub fn longest_common_subsequence(text1: String, text2: String) -> i32 {
     estimated: "10 mins",
     solutions: {
       JavaScript: `function findDuplicate(nums) {
-  let slow = nums[0];
-  let fast = nums[0];
-  do {
-    slow = nums[slow];
-    fast = nums[nums[fast]];
-  } while (slow !== fast);
-
+  let slow = nums[0], fast = nums[0];
+  do { slow = nums[slow]; fast = nums[nums[fast]]; } while (slow !== fast);
   fast = nums[0];
-  while (slow !== fast) {
-    slow = nums[slow];
-    fast = nums[fast];
-  }
+  while (slow !== fast) { slow = nums[slow]; fast = nums[fast]; }
   return slow;
-}`,
-      TypeScript: `function findDuplicate(nums: number[]): number {
-  let slow = nums[0];
-  let fast = nums[0];
-  do {
-    slow = nums[slow];
-    fast = nums[nums[fast]];
-  } while (slow !== fast);
-
-  fast = nums[0];
-  while (slow !== fast) {
-    slow = nums[slow];
-    fast = nums[fast];
-  }
-  return slow;
-}`,
-      Python: `def findDuplicate(nums: list[int]) -> int:
-    slow = nums[0]
-    fast = nums[0]
-    while True:
-        slow = nums[slow]
-        fast = nums[nums[fast]]
-        if slow == fast:
-            break
-
-    fast = nums[0]
-    while slow != fast:
-        slow = nums[slow]
-        fast = nums[fast]
-    return slow`,
-      "C++": `#include <vector>
-
-int findDuplicate(std::vector<int>& nums) {
-    int slow = nums[0];
-    int fast = nums[0];
-    do {
-        slow = nums[slow];
-        fast = nums[nums[fast]];
-    } while (slow != fast);
-
-    fast = nums[0];
-    while (slow != fast) {
-        slow = nums[slow];
-        fast = nums[fast];
-    }
-    return slow;
-}`,
-      Java: `class Solution {
-    public int findDuplicate(int[] nums) {
-        int slow = nums[0];
-        int fast = nums[0];
-        do {
-            slow = nums[slow];
-            fast = nums[nums[fast]];
-        } while (slow != fast);
-
-        fast = nums[0];
-        while (slow != fast) {
-            slow = nums[slow];
-            fast = nums[fast];
-        }
-        return slow;
-    }
-}`,
-      "C#": `public class Solution {
-    public int FindDuplicate(int[] nums) {
-        int slow = nums[0];
-        int fast = nums[0];
-        do {
-            slow = nums[slow];
-            fast = nums[nums[fast]];
-        } while (slow != fast);
-
-        fast = nums[0];
-        while (slow != fast) {
-            slow = nums[slow];
-            fast = nums[fast];
-        }
-        return slow;
-    }
-}`,
-      Go: `func findDuplicate(nums []int) int {
-    slow := nums[0]
-    fast := nums[0]
-    for {
-        slow = nums[slow]
-        fast = nums[nums[fast]]
-        if slow == fast { break }
-    }
-
-    fast = nums[0]
-    for slow != fast {
-        slow = nums[slow]
-        fast = nums[fast]
-    }
-    return slow
-}`,
-      Rust: `pub fn find_duplicate(nums: Vec<i32>) -> i32 {
-    let mut slow = nums[0] as usize;
-    let mut fast = nums[0] as usize;
-    loop {
-        slow = nums[slow] as usize;
-        fast = nums[nums[fast] as usize] as usize;
-        if slow == fast { break; }
-    }
-
-    fast = nums[0] as usize;
-    while slow != fast {
-        slow = nums[slow] as usize;
-        fast = nums[fast] as usize;
-    }
-    slow as i32
 }`
     },
-    complexity: {
-      time: "O(N)",
-      space: "O(1)"
-    },
+    complexity: { time: "O(N)", space: "O(1)" },
     takeaways: [
-      "Floyd's Tortoise and Hare algorithm detects cycles by modeling array index jumps as a linked list.",
-      "Guarantees O(1) space, avoiding hash sets, without mutating the read-only input array."
+      "Floyd's Tortoise and Hare algorithm detects cycles without extra space."
     ],
     platform: "leetcode"
   },
@@ -432,223 +95,276 @@ int findDuplicate(std::vector<int>& nums) {
     solutions: {
       JavaScript: `function maxPathSum(root) {
   let maxSum = -Infinity;
-
   function dfs(node) {
     if (!node) return 0;
-    const leftMax = Math.max(0, dfs(node.left));
-    const rightMax = Math.max(0, dfs(node.right));
-
-    maxSum = Math.max(maxSum, node.val + leftMax + rightMax);
-    return node.val + Math.max(leftMax, rightMax);
+    const left = Math.max(0, dfs(node.left));
+    const right = Math.max(0, dfs(node.right));
+    maxSum = Math.max(maxSum, node.val + left + right);
+    return node.val + Math.max(left, right);
   }
-
   dfs(root);
   return maxSum;
-}`,
-      TypeScript: `interface TreeNode {
-  val: number;
-  left: TreeNode | null;
-  right: TreeNode | null;
-}
-
-function maxPathSum(root: TreeNode | null): number {
-  let maxSum = -Infinity;
-
-  function dfs(node: TreeNode | null): number {
-    if (!node) return 0;
-    const leftMax = Math.max(0, dfs(node.left));
-    const rightMax = Math.max(0, dfs(node.right));
-
-    maxSum = Math.max(maxSum, node.val + leftMax + rightMax);
-    return node.val + Math.max(leftMax, rightMax);
-  }
-
-  dfs(root);
-  return maxSum;
-}`,
-      Python: `class TreeNode:
-    def __init__(self, val=0, left=None, right=None):
-        self.val = val
-        self.left = left
-        self.right = right
-
-def maxPathSum(root: TreeNode | None) -> int:
-    max_sum = float('-inf')
-
-    def dfs(node):
-        nonlocal max_sum
-        if not node:
-            return 0
-        left_max = max(0, dfs(node.left))
-        right_max = max(0, dfs(node.right))
-
-        max_sum = max(max_sum, node.val + left_max + right_max)
-        return node.val + max(left_max, right_max)
-
-    dfs(root)
-    return max_sum`,
-      "C++": `struct TreeNode {
-    int val;
-    TreeNode *left;
-    TreeNode *right;
-};
-
-class Solution {
-private:
-    int maxSum = -2e9;
-    int dfs(TreeNode* node) {
-        if (!node) return 0;
-        int leftMax = std::max(0, dfs(node->left));
-        int rightMax = std::max(0, dfs(node->right));
-
-        maxSum = std::max(maxSum, node->val + leftMax + rightMax);
-        return node->val + std::max(leftMax, rightMax);
-    }
-public:
-    int maxPathSum(TreeNode* root) {
-        dfs(root);
-        return maxSum;
-    }
-};`,
-      Java: `class TreeNode {
-    int val;
-    TreeNode left;
-    TreeNode right;
-}
-
-class Solution {
-    private int maxSum = Integer.MIN_VALUE;
-
-    public int maxPathSum(TreeNode root) {
-        dfs(root);
-        return maxSum;
-    }
-
-    private int dfs(TreeNode node) {
-        if (node == null) return 0;
-        int leftMax = Math.max(0, dfs(node.left));
-        int rightMax = Math.max(0, dfs(node.right));
-
-        maxSum = Math.max(maxSum, node.val + leftMax + rightMax);
-        return node.val + Math.max(leftMax, rightMax);
-    }
-}`,
-      "C#": `using System;
-
-public class TreeNode {
-    public int val;
-    public TreeNode left;
-    public TreeNode right;
-}
-
-public class Solution {
-    private int maxSum = int.MinValue;
-
-    public int MaxPathSum(TreeNode root) {
-        Dfs(root);
-        return maxSum;
-    }
-
-    private int Dfs(TreeNode node) {
-        if (node == null) return 0;
-        int leftMax = Math.Max(0, Dfs(node.left));
-        int rightMax = Math.Max(0, Dfs(node.right));
-
-        maxSum = Math.Max(maxSum, node.val + leftMax + rightMax);
-        return node.val + Math.Max(leftMax, rightMax);
-    }
-}`,
-      Go: `package main
-
-type TreeNode struct {
-    Val int
-    Left *TreeNode
-    Right *TreeNode
-}
-
-func maxPathSum(root *TreeNode) int {
-    maxSum := -1000000000
-
-    var dfs func(*TreeNode) int
-    dfs = func(node *TreeNode) int {
-        if node == nil { return 0 }
-        leftMax := max(0, dfs(node.Left))
-        rightMax := max(0, dfs(node.Right))
-
-        maxSum = max(maxSum, node.Val + leftMax + rightMax)
-        return node.Val + max(leftMax, rightMax)
-    }
-    dfs(root)
-    return maxSum
-}
-
-func max(a, b int) int {
-    if a > b { return a }
-    return b
-}`,
-      Rust: `use std::cell::RefCell;
-use std::rc::Rc;
-use std::cmp::max;
-
-struct TreeNode {
-    val: i32,
-    left: Option<Rc<RefCell<TreeNode>>>,
-    right: Option<Rc<RefCell<TreeNode>>>,
-}
-
-pub fn max_path_sum(root: Option<Rc<RefCell<TreeNode>>>) -> i32 {
-    let mut max_sum = i32::MIN;
-
-    fn dfs(node: &Option<Rc<RefCell<TreeNode>>>, max_sum: &mut i32) -> i32 {
-        if let Some(n) = node {
-            let n_borrow = n.borrow();
-            let left_max = max(0, dfs(&n_borrow.left, max_sum));
-            let right_max = max(0, dfs(&n_borrow.right, max_sum));
-
-            *max_sum = max(*max_sum, n_borrow.val + left_max + right_max);
-            n_borrow.val + max(left_max, right_max)
-        } else {
-            0
-        }
-    }
-    dfs(&root, &mut max_sum);
-    max_sum
 }`
     },
-    complexity: {
-      time: "O(N)",
-      space: "O(H) where H is tree height"
+    complexity: { time: "O(N)", space: "O(H)" },
+    takeaways: ["Paths can split or extend. We update global maxSum by splitting."],
+    platform: "leetcode"
+  },
+  {
+    id: 101,
+    title: "Sliding Window Maximum",
+    difficulty: "Hard",
+    topics: ["Sliding Window", "Monotonic Queue", "Arrays", "Heap"],
+    estimated: "35 mins",
+    solutions: {
+      JavaScript: `function maxSlidingWindow(nums, k) {
+  const deque = [];
+  const res = [];
+  for (let i = 0; i < nums.length; i++) {
+    while (deque.length && nums[deque[deque.length - 1]] <= nums[i]) deque.pop();
+    deque.push(i);
+    if (deque[0] === i - k) deque.shift();
+    if (i >= k - 1) res.push(nums[deque[0]]);
+  }
+  return res;
+}`
     },
-    takeaways: [
-      "Paths can split or extend. We update global maxSum by splitting, but return the continuous straight extension value.",
-      "Prevent negative child routes by taking Math.max(0, childSum)."
-    ],
+    complexity: { time: "O(N)", space: "O(K)" },
+    takeaways: ["Monotonic Deque keeps track of indices in decreasing value order."],
+    platform: "leetcode"
+  },
+  {
+    id: 102,
+    title: "Valid Anagram",
+    difficulty: "Easy",
+    topics: ["Strings", "Hashing", "Sorting"],
+    estimated: "10 mins",
+    solutions: {
+      JavaScript: `function isAnagram(s, t) {
+  if (s.length !== t.length) return false;
+  const count = {};
+  for (let c of s) count[c] = (count[c] || 0) + 1;
+  for (let c of t) {
+    if (!count[c]) return false;
+    count[c]--;
+  }
+  return true;
+}`
+    },
+    complexity: { time: "O(N)", space: "O(1)" },
+    takeaways: ["Frequency count hash table checks string permutation match."],
+    platform: "leetcode"
+  },
+  {
+    id: 103,
+    title: "Container With Most Water",
+    difficulty: "Medium",
+    topics: ["Two Pointers", "Arrays", "Greedy"],
+    estimated: "20 mins",
+    solutions: {
+      JavaScript: `function maxArea(height) {
+  let l = 0, r = height.length - 1, max = 0;
+  while (l < r) {
+    max = Math.max(max, Math.min(height[l], height[r]) * (r - l));
+    if (height[l] < height[r]) l++;
+    else r--;
+  }
+  return max;
+}`
+    },
+    complexity: { time: "O(N)", space: "O(1)" },
+    takeaways: ["Move the shorter line inwards to search for potentially larger areas."],
+    platform: "leetcode"
+  },
+  {
+    id: 104,
+    title: "Reverse Linked List",
+    difficulty: "Easy",
+    topics: ["Linked List", "Recursion"],
+    estimated: "15 mins",
+    solutions: {
+      JavaScript: `function reverseList(head) {
+  let prev = null, curr = head;
+  while (curr) {
+    const next = curr.next;
+    curr.next = prev;
+    prev = curr;
+    curr = next;
+  }
+  return prev;
+}`
+    },
+    complexity: { time: "O(N)", space: "O(1)" },
+    takeaways: ["Iteratively swap pointers using a three-pointer technique (prev, curr, next)."],
+    platform: "leetcode"
+  },
+  {
+    id: 105,
+    title: "Binary Search",
+    difficulty: "Easy",
+    topics: ["Binary Search", "Searching", "Arrays"],
+    estimated: "10 mins",
+    solutions: {
+      JavaScript: `function search(nums, target) {
+  let l = 0, r = nums.length - 1;
+  while (l <= r) {
+    const mid = Math.floor((l + r) / 2);
+    if (nums[mid] === target) return mid;
+    if (nums[mid] < target) l = mid + 1;
+    else r = mid - 1;
+  }
+  return -1;
+}`
+    },
+    complexity: { time: "O(log N)", space: "O(1)" },
+    takeaways: ["Divide and conquer search space iteratively."],
+    platform: "leetcode"
+  },
+  {
+    id: 106,
+    title: "Coin Change Optimization",
+    difficulty: "Medium",
+    topics: ["Dynamic Programming", "BFS", "Arrays"],
+    estimated: "30 mins",
+    solutions: {
+      JavaScript: `function coinChange(coins, amount) {
+  const dp = Array(amount + 1).fill(Infinity);
+  dp[0] = 0;
+  for (let coin of coins) {
+    for (let i = coin; i <= amount; i++) {
+      dp[i] = Math.min(dp[i], dp[i - coin] + 1);
+    }
+  }
+  return dp[amount] === Infinity ? -1 : dp[amount];
+}`
+    },
+    complexity: { time: "O(amount * N)", space: "O(amount)" },
+    takeaways: ["Unbounded knapsack dynamic programming."],
+    platform: "leetcode"
+  },
+  {
+    id: 107,
+    title: "Subarray Sum Equals K",
+    difficulty: "Medium",
+    topics: ["Prefix Sum", "Hashing", "Arrays"],
+    estimated: "25 mins",
+    solutions: {
+      JavaScript: `function subarraySum(nums, k) {
+  let count = 0, sum = 0;
+  const map = new Map([[0, 1]]);
+  for (let num of nums) {
+    sum += num;
+    if (map.has(sum - k)) count += map.get(sum - k);
+    map.set(sum, (map.get(sum) || 0) + 1);
+  }
+  return count;
+}`
+    },
+    complexity: { time: "O(N)", space: "O(N)" },
+    takeaways: ["Prefix Sum + Map lookup reduces O(N^2) contiguous sum query to O(N)."],
+    platform: "leetcode"
+  },
+  {
+    id: 108,
+    title: "Merge Intervals",
+    difficulty: "Medium",
+    topics: ["Intervals", "Sorting", "Arrays"],
+    estimated: "25 mins",
+    solutions: {
+      JavaScript: `function merge(intervals) {
+  intervals.sort((a, b) => a[0] - b[0]);
+  const res = [intervals[0]];
+  for (let i = 1; i < intervals.length; i++) {
+    const last = res[res.length - 1];
+    if (intervals[i][0] <= last[1]) {
+      last[1] = Math.max(last[1], intervals[i][1]);
+    } else {
+      res.push(intervals[i]);
+    }
+  }
+  return res;
+}`
+    },
+    complexity: { time: "O(N log N)", space: "O(N)" },
+    takeaways: ["Sort intervals by start time before linear merging pass."],
+    platform: "leetcode"
+  },
+  {
+    id: 109,
+    title: "Word Search Grid",
+    difficulty: "Medium",
+    topics: ["Backtracking", "Matrix", "DFS"],
+    estimated: "35 mins",
+    solutions: {
+      JavaScript: `function exist(board, word) {
+  const m = board.length, n = board[0].length;
+  function dfs(r, c, i) {
+    if (i === word.length) return true;
+    if (r < 0 || c < 0 || r >= m || c >= n || board[r][c] !== word[i]) return false;
+    const temp = board[r][c];
+    board[r][c] = '#';
+    const found = dfs(r+1, c, i+1) || dfs(r-1, c, i+1) || dfs(r, c+1, i+1) || dfs(r, c-1, i+1);
+    board[r][c] = temp;
+    return found;
+  }
+  for (let r = 0; r < m; r++) {
+    for (let c = 0; c < n; c++) {
+      if (dfs(r, c, 0)) return true;
+    }
+  }
+  return false;
+}`
+    },
+    complexity: { time: "O(N * 3^L)", space: "O(L)" },
+    takeaways: ["Backtracking with in-place character mutation avoids visiting the same cell twice."],
+    platform: "leetcode"
+  },
+  {
+    id: 110,
+    title: "Trapping Rain Water",
+    difficulty: "Hard",
+    topics: ["Two Pointers", "Stack", "Monotonic Stack", "Arrays"],
+    estimated: "40 mins",
+    solutions: {
+      JavaScript: `function trap(height) {
+  let l = 0, r = height.length - 1, leftMax = 0, rightMax = 0, res = 0;
+  while (l < r) {
+    if (height[l] < height[r]) {
+      if (height[l] >= leftMax) leftMax = height[l];
+      else res += leftMax - height[l];
+      l++;
+    } else {
+      if (height[r] >= rightMax) rightMax = height[r];
+      else res += rightMax - height[r];
+      r--;
+    }
+  }
+  return res;
+}`
+    },
+    complexity: { time: "O(N)", space: "O(1)" },
+    takeaways: ["Two Pointers shrink boundaries maintaining maximum left and right heights."],
     platform: "leetcode"
   }
 ];
 
-export class LeetCodeService implements ProblemService {
-  async getProblems(request: RecommendationRequest): Promise<Problem[]> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+export class LeetCodeService implements ProblemService, QuestionProvider {
+  readonly platform: Platform = 'leetcode';
 
+  async getProblems(request: RecommendationRequest): Promise<Problem[]> {
+    await new Promise(resolve => setTimeout(resolve, 50));
     let filtered = [...LEETCODE_PROBLEMS];
 
-    // Filter by topics if provided
-    if (request.topics.length > 0) {
+    if (request.topics && request.topics.length > 0) {
       filtered = filtered.filter(problem =>
         problem.topics.some(topic => request.topics.includes(topic))
       );
     }
 
-    // Filter by difficulty if provided (and not Mixed)
     if (request.difficulty && request.difficulty !== 'Mixed') {
-      filtered = filtered.filter(problem =>
-        problem.difficulty === request.difficulty
-      );
+      filtered = filtered.filter(problem => problem.difficulty === request.difficulty);
     }
 
-    // Apply limit per platform
     if (request.countPerPlatform && request.countPerPlatform > 0) {
       filtered = filtered.slice(0, request.countPerPlatform);
     }

@@ -3,17 +3,20 @@
 import * as React from "react";
 import { LeetCodeService } from "@/services/leetcode/leetcodeService";
 import { CodeforcesService } from "@/services/codeforces/codeforcesService";
+import { RecommendationEngine } from "@/services/recommendationEngine";
 import {
-  RecommendationRequest,
-  ProblemService,
   Platform,
   RecommendationPlatformConfig,
-  RecommendationConfig
+  RecommendationConfig,
+  DailyPracticeSession,
+  SessionQuestionItem
 } from "@/services/types";
 import { recommendationStorage } from "@/services/recommendationStorage";
+import { dailySessionStorage } from "@/services/dailyRecommendationStorage";
 import { checkRecommendationSettingsCooldown } from "@/services/cooldownService";
+import { getTodayDateString } from "@/utils/dateUtils";
 
-export type { RecommendationPlatformConfig, RecommendationConfig };
+export type { RecommendationPlatformConfig, RecommendationConfig, DailyPracticeSession, SessionQuestionItem };
 
 export interface Problem {
   id: number;
@@ -34,12 +37,11 @@ export interface HistoryItem {
   id: number;
   problemId: number;
   problemTitle: string;
-  date: string; // Formatted date for display (started date)
+  date: string;
   difficulty: "Easy" | "Medium" | "Hard";
   status: "Solved" | "Incomplete";
-  // New tracking fields
-  startedAt: string; // ISO timestamp
-  completedAt?: string; // ISO timestamp (only when completed)
+  startedAt: string;
+  completedAt?: string;
   platform: Platform;
   topics: string[];
 }
@@ -57,143 +59,67 @@ export const DEFAULT_RECOMMENDATION_CONFIG: RecommendationConfig = {
   lastRecommendationSettingsUpdate: undefined
 };
 
+const defaultEngine = new RecommendationEngine([
+  new LeetCodeService(),
+  new CodeforcesService()
+]);
+
 interface AppContextType {
   selectedLanguage: string;
   selectedTopics: string[];
   problems: Problem[];
+  dailySession: DailyPracticeSession | null;
   history: HistoryItem[];
   selectedReviewProblem: Problem | null;
   toast: ToastState;
   recommendationConfig: RecommendationConfig;
-  // Loading states
   loading: boolean;
   error: string | null;
-  // Problem tracking
   problemStatuses: Record<string, {
-    status: "Not Started" | "In Progress" | "Completed";
-    startedAt?: string; // ISO timestamp
-    completedAt?: string; // ISO timestamp
+    status: "Not Started" | "In Progress" | "Completed" | "Skipped";
+    startedAt?: string;
+    completedAt?: string;
+    skippedAt?: string;
   }>;
-  // Notes
-  notes: Record<string, string>; // problemId -> note
+  notes: Record<string, string>;
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
   resetProfile: () => void;
   importProfile: (language: string, topics: string[], history: HistoryItem[]) => void;
   updateRecommendationConfig: (platformConfigs: RecommendationPlatformConfig[]) => { success: boolean; message: string };
-  // Problem tracking functions
   startPractice: (problemId: number) => void;
   markCompleted: (problemId: number) => void;
-  // Problem refetch / retry function
+  skipProblem: (problemId: number) => void;
   retryProblems: () => void;
-  // Notes functions
   updateNote: (problemId: number, note: string) => void;
   deleteNote: (problemId: number) => void;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
-// Helper to determine active problems matching selected topics & recommendation config
-const getFilteredProblems = async (topics: string[], config: RecommendationConfig): Promise<Problem[]> => {
-  if (topics.length === 0 || !config.platformConfigs || config.platformConfigs.length === 0) return [];
-
-  const platformPromises = config.platformConfigs.map(async (pConfig) => {
-    let service: ProblemService;
-    if (pConfig.platform === "leetcode") {
-      service = new LeetCodeService();
-    } else if (pConfig.platform === "codeforces") {
-      service = new CodeforcesService();
-    } else {
-      return [];
-    }
-
-    const request: RecommendationRequest = {
-      topics: topics,
-      platforms: [pConfig.platform],
-      countPerPlatform: pConfig.questionsPerDay,
-      difficulty: pConfig.difficulty === "Mixed" ? undefined : pConfig.difficulty
-    };
-
-    return await service.getProblems(request);
-  });
-
-  const results = await Promise.all(platformPromises);
-  const allProblems = results.flat();
-
-  // Deduplicate by problem ID and sort
-  const uniqueProblems = Array.from(
-    new Map(allProblems.map(p => [p.id, p])).values()
-  );
-  uniqueProblems.sort((a, b) => a.id - b.id);
-
-  return uniqueProblems;
-};
-
-// Generate static history items using standard mock problems
-const getMockHistory = async (topics: string[], config: RecommendationConfig): Promise<HistoryItem[]> => {
-  const filtered = await getFilteredProblems(topics, config);
-  if (filtered.length === 0) return [];
-
-  const now = new Date();
-  const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-
-  return [
-    {
-      id: 1,
-      problemId: filtered[0].id,
-      problemTitle: filtered[0].title,
-      date: formattedDate,
-      difficulty: filtered[0].difficulty,
-      status: "Solved" as const,
-      startedAt: now.toISOString(),
-      completedAt: now.toISOString(),
-      platform: filtered[0].platform,
-      topics: filtered[0].topics
-    },
-    ...(filtered.length > 1
-      ? [
-          {
-            id: 2,
-            problemId: filtered[1].id,
-            problemTitle: filtered[1].title,
-            date: formattedDate,
-            difficulty: filtered[1].difficulty,
-            status: "Incomplete" as const,
-            startedAt: now.toISOString(),
-            completedAt: undefined,
-            platform: filtered[1].platform,
-            topics: filtered[1].topics
-          }
-        ]
-      : [])
-  ];
-};
-
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedLanguage, setSelectedLanguage] = React.useState<string>("JavaScript");
-  const [selectedTopics, setSelectedTopics] = React.useState<string[]>([
-    "Arrays",
-    "Hashing",
-    "Two Pointers",
-    "Binary Search",
-    "Recursion"
-  ]);
+  const [selectedTopics, setSelectedTopics] = React.useState<string[]>([]);
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [selectedReviewProblem, setSelectedReviewProblem] = React.useState<Problem | null>(null);
   const [toast, setToast] = React.useState<ToastState>({ show: false, message: "" });
   const [recommendationConfig, setRecommendationConfig] = React.useState<RecommendationConfig>(DEFAULT_RECOMMENDATION_CONFIG);
 
-  // Problem status tracking: maps problemId to status object
+  const [dailySession, setDailySession] = React.useState<DailyPracticeSession | null>(null);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [reloadTrigger, setReloadTrigger] = React.useState(0);
+
   const [problemStatuses, setProblemStatuses] = React.useState<Record<string, {
-    status: "Not Started" | "In Progress" | "Completed";
+    status: "Not Started" | "In Progress" | "Completed" | "Skipped";
     startedAt?: string;
     completedAt?: string;
+    skippedAt?: string;
   }>>({});
-  // Notes tracking: maps problemId to note string
+
   const [notes, setNotes] = React.useState<Record<string, string>>({});
 
-  // Track mount status for safe state updates
   const mountedRef = React.useRef(false);
   React.useEffect(() => {
     mountedRef.current = true;
@@ -202,50 +128,74 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  // Memoize problems based on selectedTopics and recommendationConfig
-  const [problems, setProblems] = React.useState<Problem[]>([]);
-  const [loading, setLoading] = React.useState<boolean>(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [reloadTrigger, setReloadTrigger] = React.useState(0);
-
   const retryProblems = React.useCallback(() => {
     setReloadTrigger(prev => prev + 1);
   }, []);
 
+  // Convert SessionQuestionItem to standard Problem format for components that require it
+  const problems: Problem[] = React.useMemo(() => {
+    if (!dailySession || !dailySession.questions) return [];
+    return dailySession.questions.map(q => ({
+      id: q.problemId,
+      title: q.problemTitle,
+      difficulty: q.difficulty,
+      topics: q.topics,
+      estimated: q.estimated,
+      solutions: q.solutions,
+      complexity: q.complexity,
+      takeaways: q.takeaways,
+      platform: q.platform
+    }));
+  }, [dailySession]);
+
+  // Load or generate Daily Practice Session for today's date
   React.useEffect(() => {
     let isMounted = true;
+    const todayStr = getTodayDateString();
 
-    const loadProblems = async () => {
-      if (isMounted) {
-        setLoading(true);
-        setError(null);
+    const syncSession = async () => {
+      if (selectedTopics.length === 0) {
+        if (isMounted) setDailySession(null);
+        return;
       }
+
+      if (isMounted) setLoading(true);
+
       try {
-        const fetchedProblems = await getFilteredProblems(selectedTopics, recommendationConfig);
+        const existingSession = await dailySessionStorage.loadTodaySession(todayStr);
+
+        if (existingSession && existingSession.questions && existingSession.questions.length > 0) {
+          if (isMounted) {
+            setDailySession(existingSession);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const newSession = await defaultEngine.generateDailySession(selectedTopics, recommendationConfig);
+        await dailySessionStorage.saveSession(newSession);
+
         if (isMounted) {
-          setProblems(fetchedProblems);
+          setDailySession(newSession);
           setLoading(false);
         }
       } catch (err) {
+        console.error("Error loading daily session:", err);
         if (isMounted) {
-          setError(err instanceof Error ? err.message : "Failed to load problems");
+          setError("Failed to generate today's recommendations.");
           setLoading(false);
-          setToast({
-            show: true,
-            message: "Failed to load problems. Please try again."
-          });
         }
       }
     };
 
-    loadProblems();
+    syncSession();
 
     return () => {
       isMounted = false;
     };
-  }, [selectedTopics, recommendationConfig, reloadTrigger, setToast]);
+  }, [selectedTopics, recommendationConfig, reloadTrigger]);
 
-  // Synchronise state on first render
+  // Synchronise stored state on mount
   React.useEffect(() => {
     const savedLanguage = localStorage.getItem("dsa_language");
     const savedTopics = localStorage.getItem("dsa_topics");
@@ -253,7 +203,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const savedProblemStatuses = localStorage.getItem("dsa_problem_status");
     const savedNotes = localStorage.getItem("dsa_notes");
 
-    let activeTopics = [
+    let activeTopics: string[] = [
       "Arrays",
       "Hashing",
       "Two Pointers",
@@ -272,81 +222,29 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        interface OldHistoryItem {
-          id: number;
-          problemId: number;
-          problemTitle: string;
-          date: string;
-          difficulty: "Easy" | "Medium" | "Hard";
-          status: "Solved" | "Incomplete";
-        }
-        activeHistory = parsed.map((item: OldHistoryItem) => {
-          let fallbackDate: Date;
-          try {
-            fallbackDate = new Date(item.date);
-            if (isNaN(fallbackDate.getTime())) {
-              fallbackDate = new Date();
-            }
-          } catch {
-            fallbackDate = new Date();
-          }
-
-          return {
-            ...item,
-            startedAt: fallbackDate.toISOString(),
-            completedAt: item.status === "Solved" ? fallbackDate.toISOString() : undefined,
-            platform: "leetcode",
-            topics: []
-          } as HistoryItem;
-        });
+        activeHistory = parsed;
       } catch (e) {
         console.error("Failed to parse saved history", e);
-        activeHistory = [];
       }
-    } else {
-      getMockHistory(activeTopics, DEFAULT_RECOMMENDATION_CONFIG).then(h => {
-        if (mountedRef.current) {
-          setHistory(h);
-          localStorage.setItem("dsa_history", JSON.stringify(h));
-        }
-      });
     }
 
-    let activeConfig: RecommendationConfig = DEFAULT_RECOMMENDATION_CONFIG;
-    recommendationStorage.loadConfig().then((loadedConfig) => {
-      if (loadedConfig) {
-        if (loadedConfig.platformConfigs && Array.isArray(loadedConfig.platformConfigs) && loadedConfig.platformConfigs.length > 0) {
-          activeConfig = loadedConfig;
-        } else if ((loadedConfig as unknown as Record<string, unknown>).platforms) {
-          // Migration from legacy schema
-          const legacyObj = loadedConfig as unknown as { platforms: Platform[]; countPerPlatform?: number; difficulty?: "Easy" | "Medium" | "Hard" | "Mixed"; lastRecommendationSettingsUpdate?: string };
-          const migrated: RecommendationPlatformConfig[] = (legacyObj.platforms || []).map(p => ({
-            platform: p,
-            questionsPerDay: legacyObj.countPerPlatform ?? 5,
-            difficulty: legacyObj.difficulty ?? "Mixed"
-          }));
-          activeConfig = {
-            platformConfigs: migrated.length > 0 ? migrated : DEFAULT_RECOMMENDATION_CONFIG.platformConfigs,
-            lastRecommendationSettingsUpdate: legacyObj.lastRecommendationSettingsUpdate
-          };
-        }
-      }
-
-      if (mountedRef.current) {
-        setRecommendationConfig(activeConfig);
+    recommendationStorage.loadConfig().then(loadedConfig => {
+      if (loadedConfig && loadedConfig.platformConfigs && loadedConfig.platformConfigs.length > 0) {
+        if (mountedRef.current) setRecommendationConfig(loadedConfig);
       }
     });
 
-    let activeProblemStatuses: Record<string, {
-      status: "Not Started" | "In Progress" | "Completed";
+    let activeStatuses: Record<string, {
+      status: "Not Started" | "In Progress" | "Completed" | "Skipped";
       startedAt?: string;
       completedAt?: string;
+      skippedAt?: string;
     }> = {};
     if (savedProblemStatuses) {
       try {
-        activeProblemStatuses = JSON.parse(savedProblemStatuses);
+        activeStatuses = JSON.parse(savedProblemStatuses);
       } catch (e) {
-        console.error("Failed to parse saved problem statuses", e);
+        console.error("Failed to parse saved statuses", e);
       }
     }
 
@@ -360,31 +258,24 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const timer = setTimeout(() => {
-      if (savedLanguage) {
-        setSelectedLanguage(savedLanguage);
-      }
+      if (savedLanguage) setSelectedLanguage(savedLanguage);
       setSelectedTopics(activeTopics);
-      if (activeHistory.length > 0) {
-        setHistory(activeHistory);
-      }
-      setProblemStatuses(activeProblemStatuses);
+      if (activeHistory.length > 0) setHistory(activeHistory);
+      setProblemStatuses(activeStatuses);
       setNotes(activeNotes);
     }, 0);
 
     return () => clearTimeout(timer);
   }, []);
 
-  // Persist problemStatuses to localStorage whenever it changes
   React.useEffect(() => {
     localStorage.setItem("dsa_problem_status", JSON.stringify(problemStatuses));
   }, [problemStatuses]);
 
-  // Persist notes to localStorage whenever it changes
   React.useEffect(() => {
     localStorage.setItem("dsa_notes", JSON.stringify(notes));
   }, [notes]);
 
-  // Persist history to localStorage whenever it changes
   React.useEffect(() => {
     localStorage.setItem("dsa_history", JSON.stringify(history));
   }, [history]);
@@ -394,6 +285,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedTopics(topics);
     localStorage.setItem("dsa_language", language);
     localStorage.setItem("dsa_topics", JSON.stringify(topics));
+
+    dailySessionStorage.clearSession().then(() => {
+      setReloadTrigger(prev => prev + 1);
+    });
 
     setToast({
       show: true,
@@ -418,27 +313,27 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       "Recursion"
     ];
 
-    getMockHistory(defaultTopics, DEFAULT_RECOMMENDATION_CONFIG).then(defaultHistory => {
-      setSelectedLanguage("JavaScript");
-      setSelectedTopics(defaultTopics);
-      setHistory(defaultHistory);
-      setSelectedReviewProblem(null);
-      setRecommendationConfig(DEFAULT_RECOMMENDATION_CONFIG);
-      setProblemStatuses({});
-      setNotes({});
+    setSelectedLanguage("JavaScript");
+    setSelectedTopics(defaultTopics);
+    setHistory([]);
+    setSelectedReviewProblem(null);
+    setRecommendationConfig(DEFAULT_RECOMMENDATION_CONFIG);
+    setProblemStatuses({});
+    setNotes({});
+    setDailySession(null);
 
-      localStorage.removeItem("dsa_language");
-      localStorage.removeItem("dsa_topics");
-      localStorage.removeItem("dsa_history");
-      localStorage.removeItem("dsa_review_problem_id");
-      localStorage.removeItem("dsa_problem_status");
-      localStorage.removeItem("dsa_notes");
-      recommendationStorage.clearConfig();
+    localStorage.removeItem("dsa_language");
+    localStorage.removeItem("dsa_topics");
+    localStorage.removeItem("dsa_history");
+    localStorage.removeItem("dsa_review_problem_id");
+    localStorage.removeItem("dsa_problem_status");
+    localStorage.removeItem("dsa_notes");
+    recommendationStorage.clearConfig();
+    dailySessionStorage.clearSession();
 
-      setToast({
-        show: true,
-        message: "Permanent knowledge profile reset to defaults."
-      });
+    setToast({
+      show: true,
+      message: "Permanent knowledge profile reset to defaults."
     });
   };
 
@@ -446,33 +341,16 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedLanguage(language);
     setSelectedTopics(topics);
 
-    const convertedHistory: HistoryItem[] = importedHistory.map((item): HistoryItem => {
-      let fallbackDate: Date;
-      try {
-        fallbackDate = new Date(item.date);
-        if (isNaN(fallbackDate.getTime())) {
-          fallbackDate = new Date();
-        }
-      } catch {
-        fallbackDate = new Date();
-      }
-
-      return {
-        ...item,
-        startedAt: item.startedAt || fallbackDate.toISOString(),
-        completedAt: item.completedAt || (item.status === "Solved" ? fallbackDate.toISOString() : undefined),
-        platform: item.platform || "leetcode",
-        topics: Array.isArray(item.topics) ? item.topics : []
-      };
-    });
-
-    setHistory(convertedHistory);
+    setHistory(importedHistory);
     setSelectedReviewProblem(null);
 
     localStorage.setItem("dsa_language", language);
     localStorage.setItem("dsa_topics", JSON.stringify(topics));
-    localStorage.setItem("dsa_history", JSON.stringify(convertedHistory));
-    localStorage.removeItem("dsa_review_problem_id");
+    localStorage.setItem("dsa_history", JSON.stringify(importedHistory));
+
+    dailySessionStorage.clearSession().then(() => {
+      setReloadTrigger(prev => prev + 1);
+    });
 
     setToast({
       show: true,
@@ -480,15 +358,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  const updateRecommendationConfig = (newPlatformConfigs: RecommendationPlatformConfig[]): { success: boolean; message: string } => {
+  const updateRecommendationConfig = (newPlatformConfigs: RecommendationPlatformConfig[]) => {
     const cooldownCheck = checkRecommendationSettingsCooldown(recommendationConfig.lastRecommendationSettingsUpdate);
 
     if (!cooldownCheck.canUpdate) {
       const message = `Recommendation settings can only be changed once every 24 hours. Next update available in ${cooldownCheck.formattedRemainingTime} (at ${cooldownCheck.nextAvailableTimeFormatted}).`;
-      setToast({
-        show: true,
-        message
-      });
+      setToast({ show: true, message });
       return { success: false, message };
     }
 
@@ -501,22 +376,63 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setRecommendationConfig(updatedConfig);
     recommendationStorage.saveConfig(updatedConfig);
 
-    const message = "Recommendation settings saved successfully!";
-    setToast({
-      show: true,
-      message
+    dailySessionStorage.clearSession().then(() => {
+      setReloadTrigger(prev => prev + 1);
     });
+
+    const message = "Recommendation settings saved successfully!";
+    setToast({ show: true, message });
     return { success: true, message };
   };
 
-  const startPractice = (problemId: number) => {
-    const existingHistoryIndex = history.findIndex(item => item.problemId === problemId);
-    if (existingHistoryIndex === -1) {
-      const problem = problems.find(p => p.id === problemId);
-      if (problem) {
-        const now = new Date();
-        const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  const updateSessionQuestionStatus = (
+    problemId: number,
+    newStatus: "Not Started" | "In Progress" | "Completed" | "Skipped"
+  ) => {
+    if (!dailySession) return;
+    const nowIso = new Date().toISOString();
 
+    const updatedQuestions = dailySession.questions.map(q => {
+      if (q.problemId === problemId) {
+        return {
+          ...q,
+          status: newStatus,
+          startedAt: newStatus === "In Progress" ? nowIso : q.startedAt,
+          completedAt: newStatus === "Completed" ? nowIso : q.completedAt,
+          skippedAt: newStatus === "Skipped" ? nowIso : q.skippedAt
+        };
+      }
+      return q;
+    });
+
+    const completedCount = updatedQuestions.filter(q => q.status === "Completed").length;
+    const skippedCount = updatedQuestions.filter(q => q.status === "Skipped").length;
+    const inProgressCount = updatedQuestions.filter(q => q.status === "In Progress").length;
+
+    const updatedSession: DailyPracticeSession = {
+      ...dailySession,
+      updatedAt: nowIso,
+      questions: updatedQuestions,
+      metadata: {
+        ...dailySession.metadata,
+        completedCount,
+        skippedCount,
+        inProgressCount
+      }
+    };
+
+    setDailySession(updatedSession);
+    dailySessionStorage.saveSession(updatedSession);
+  };
+
+  const startPractice = (problemId: number) => {
+    const problem = problems.find(p => p.id === problemId);
+    if (problem) {
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+      const existing = history.find(h => h.problemId === problemId);
+
+      if (!existing) {
         const newHistoryItem: HistoryItem = {
           id: Date.now(),
           problemId: problem.id,
@@ -529,93 +445,84 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           platform: problem.platform,
           topics: problem.topics
         };
-
         setHistory(prev => [newHistoryItem, ...prev]);
       }
     }
 
-    setProblemStatuses(prev => {
-      const newStatuses = { ...prev };
-      const problemIdStr = problemId.toString();
-      if (!newStatuses[problemIdStr]) {
-        newStatuses[problemIdStr] = {
-          status: "In Progress",
-          startedAt: new Date().toISOString()
-        };
-      } else {
-        newStatuses[problemIdStr] = {
-          ...newStatuses[problemIdStr],
-          status: "In Progress",
-          startedAt: new Date().toISOString()
-        };
+    setProblemStatuses(prev => ({
+      ...prev,
+      [problemId.toString()]: {
+        status: "In Progress",
+        startedAt: new Date().toISOString()
       }
-      return newStatuses;
-    });
+    }));
+
+    updateSessionQuestionStatus(problemId, "In Progress");
   };
 
   const markCompleted = (problemId: number) => {
-    setHistory(prev => prev.map(item =>
-      item.problemId === problemId
-        ? {
-            ...item,
-            status: "Solved",
-            completedAt: new Date().toISOString()
-          }
-        : item
-    ));
-
-    setProblemStatuses(prev => {
-      const newStatuses = { ...prev };
-      const problemIdStr = problemId.toString();
-      if (!newStatuses[problemIdStr]) {
-        newStatuses[problemIdStr] = {
-          status: "Completed",
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString()
-        };
-      } else {
-        newStatuses[problemIdStr] = {
-          ...newStatuses[problemIdStr],
-          status: "Completed",
-          completedAt: new Date().toISOString()
-        };
-      }
-      return newStatuses;
-    });
-
     const problem = problems.find(p => p.id === problemId);
     if (problem) {
-      const alreadyInHistory = history.some(item => item.problemId === problemId);
-      if (!alreadyInHistory) {
-        const newHistoryItem: HistoryItem = {
-          id: Date.now(),
-          problemId: problem.id,
-          problemTitle: problem.title,
-          date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
-          difficulty: problem.difficulty,
-          status: "Solved",
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-          platform: problem.platform,
-          topics: problem.topics
-        };
-        setHistory(prev => [newHistoryItem, ...prev]);
-      }
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+
+      setHistory(prev => {
+        const existing = prev.find(h => h.problemId === problemId);
+        if (existing) {
+          return prev.map(h => h.problemId === problemId ? { ...h, status: "Solved", completedAt: now.toISOString() } : h);
+        }
+        return [
+          {
+            id: Date.now(),
+            problemId: problem.id,
+            problemTitle: problem.title,
+            date: formattedDate,
+            difficulty: problem.difficulty,
+            status: "Solved",
+            startedAt: now.toISOString(),
+            completedAt: now.toISOString(),
+            platform: problem.platform,
+            topics: problem.topics
+          },
+          ...prev
+        ];
+      });
     }
+
+    setProblemStatuses(prev => ({
+      ...prev,
+      [problemId.toString()]: {
+        ...prev[problemId.toString()],
+        status: "Completed",
+        completedAt: new Date().toISOString()
+      }
+    }));
+
+    updateSessionQuestionStatus(problemId, "Completed");
+  };
+
+  const skipProblem = (problemId: number) => {
+    setProblemStatuses(prev => ({
+      ...prev,
+      [problemId.toString()]: {
+        ...prev[problemId.toString()],
+        status: "Skipped",
+        skippedAt: new Date().toISOString()
+      }
+    }));
+
+    updateSessionQuestionStatus(problemId, "Skipped");
   };
 
   const clearToast = () => {
-    setToast((prev: ToastState) => ({ ...prev, show: false }));
+    setToast(prev => ({ ...prev, show: false }));
   };
 
   const updateNote = (problemId: number, note: string) => {
     setNotes(prev => {
       const newNotes = { ...prev };
-      if (note.trim() === "") {
-        delete newNotes[problemId.toString()];
-      } else {
-        newNotes[problemId.toString()] = note;
-      }
+      if (note.trim() === "") delete newNotes[problemId.toString()];
+      else newNotes[problemId.toString()] = note;
       return newNotes;
     });
   };
@@ -631,28 +538,30 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <AppContext.Provider
       value={{
-        selectedLanguage: selectedLanguage,
-        selectedTopics: selectedTopics,
-        problems: problems,
-        history: history,
-        selectedReviewProblem: selectedReviewProblem,
-        toast: toast,
-        recommendationConfig: recommendationConfig,
-        loading: loading,
-        error: error,
-        problemStatuses: problemStatuses,
-        notes: notes,
-        saveProfile: saveProfile,
-        selectReviewProblem: selectReviewProblem,
-        clearToast: clearToast,
-        resetProfile: resetProfile,
-        importProfile: importProfile,
-        updateRecommendationConfig: updateRecommendationConfig,
-        startPractice: startPractice,
-        markCompleted: markCompleted,
-        retryProblems: retryProblems,
-        updateNote: updateNote,
-        deleteNote: deleteNote
+        selectedLanguage,
+        selectedTopics,
+        problems,
+        dailySession,
+        history,
+        selectedReviewProblem,
+        toast,
+        recommendationConfig,
+        loading,
+        error,
+        problemStatuses,
+        notes,
+        saveProfile,
+        selectReviewProblem,
+        clearToast,
+        resetProfile,
+        importProfile,
+        updateRecommendationConfig,
+        startPractice,
+        markCompleted,
+        skipProblem,
+        retryProblems,
+        updateNote,
+        deleteNote
       }}
     >
       {children}

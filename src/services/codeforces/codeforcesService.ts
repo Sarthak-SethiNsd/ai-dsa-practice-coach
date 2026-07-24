@@ -1,4 +1,4 @@
-import { Problem, RecommendationRequest, ProblemService } from '../types';
+import { Problem, RecommendationRequest, ProblemService, QuestionProvider, Platform } from '../types';
 
 // Mock Codeforces problems - using subset of existing mock problems
 const CODEFORCES_PROBLEMS: Problem[] = [
@@ -1175,28 +1175,26 @@ impl LRUCache {
   }
 ];
 
-export class CodeforcesService implements ProblemService {
+export class CodeforcesService implements ProblemService, QuestionProvider {
+  readonly platform: Platform = 'codeforces';
+
   async getProblems(request: RecommendationRequest): Promise<Problem[]> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     let filtered = [...CODEFORCES_PROBLEMS];
 
-    // Filter by topics if provided
-    if (request.topics.length > 0) {
+    if (request.topics && request.topics.length > 0) {
       filtered = filtered.filter(problem =>
         problem.topics.some(topic => request.topics.includes(topic))
       );
     }
 
-    // Filter by difficulty if provided (and not Mixed)
     if (request.difficulty && request.difficulty !== 'Mixed') {
       filtered = filtered.filter(problem =>
         problem.difficulty === request.difficulty
       );
     }
 
-    // Apply limit per platform
     if (request.countPerPlatform && request.countPerPlatform > 0) {
       filtered = filtered.slice(0, request.countPerPlatform);
     }

@@ -1,81 +1,112 @@
-import { ProblemService } from './types';
-import { Problem, RecommendationRequest } from './types';
+import { QuestionProvider, RecommendationConfig, Problem, DailyPracticeSession, SessionQuestionItem } from './types';
+import { QuestionSelector } from './questionSelector';
+import { getTodayDateString } from '@/utils/dateUtils';
 
 /**
- * RecommendationEngine that works with any platform service implementing the ProblemService interface
+ * RecommendationEngine operates against abstract QuestionProvider instances to generate
+ * structured DailyPracticeSessions for the user's saved profile and per-platform recommendation settings.
  */
 export class RecommendationEngine {
-  private services: ProblemService[];
+  private providers: Map<string, QuestionProvider>;
 
-  constructor(services: ProblemService[]) {
-    this.services = services;
+  constructor(providers: QuestionProvider[] = []) {
+    this.providers = new Map();
+    providers.forEach(provider => {
+      this.providers.set(provider.platform, provider);
+    });
   }
 
   /**
-   * Get problem recommendations from all registered services
-   * @param request - The recommendation request containing topics, platforms, count per platform, difficulty, and total limit
-   * @returns Promise resolving to array of recommended problems
+   * Registers a QuestionProvider for a specific platform.
    */
-  async getRecommendations(request: RecommendationRequest): Promise<Problem[]> {
-    try {
-      // Get problems from all services concurrently
-      const servicePromises = this.services.map(service =>
-        service.getProblems(request)
-      );
+  registerProvider(provider: QuestionProvider): void {
+    this.providers.set(provider.platform, provider);
+  }
 
-      const results = await Promise.all(servicePromises);
+  /**
+   * Generates a new DailyPracticeSession based on selected topics and recommendation configuration.
+   */
+  async generateDailySession(
+    selectedTopics: string[],
+    config: RecommendationConfig
+  ): Promise<DailyPracticeSession> {
+    const todayStr = getTodayDateString();
+    const nowIso = new Date().toISOString();
 
-      // Flatten results from all services
-      let allProblems: Problem[] = [];
-      results.forEach(result => {
-        allProblems = [...allProblems, ...result];
-      });
+    if (!selectedTopics || selectedTopics.length === 0 || !config.platformConfigs || config.platformConfigs.length === 0) {
+      return {
+        sessionId: `session-${todayStr}`,
+        date: todayStr,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        platformConfigs: config.platformConfigs || [],
+        questions: [],
+        metadata: {
+          totalQuestions: 0,
+          completedCount: 0,
+          skippedCount: 0,
+          inProgressCount: 0,
+          topicsCovered: []
+        }
+      };
+    }
 
-      // Remove duplicates by problem ID (in case same problem exists in multiple platforms)
-      const uniqueProblems = Array.from(
-        new Map(allProblems.map(problem => [problem.id, problem])).values()
-      );
+    const sessionQuestions: SessionQuestionItem[] = [];
 
-      // Sort by ID for consistent ordering
-      uniqueProblems.sort((a, b) => a.id - b.id);
+    for (const pConfig of config.platformConfigs) {
+      const provider = this.providers.get(pConfig.platform);
+      if (!provider) continue;
 
-      // Apply total limit if specified
-      if (request.totalLimit && request.totalLimit > 0) {
-        return uniqueProblems.slice(0, request.totalLimit);
+      try {
+        const candidateProblems: Problem[] = await provider.getProblems({
+          topics: selectedTopics,
+          platforms: [pConfig.platform],
+          countPerPlatform: pConfig.questionsPerDay,
+          difficulty: pConfig.difficulty === "Mixed" ? undefined : pConfig.difficulty
+        });
+
+        const selectedProblems = QuestionSelector.selectQuestionsForPlatform(
+          candidateProblems,
+          selectedTopics,
+          pConfig
+        );
+
+        selectedProblems.forEach(p => {
+          sessionQuestions.push({
+            problemId: p.id,
+            problemTitle: p.title,
+            platform: p.platform,
+            difficulty: p.difficulty,
+            topics: p.topics,
+            estimated: p.estimated,
+            solutions: p.solutions,
+            complexity: p.complexity,
+            takeaways: p.takeaways,
+            status: "Not Started"
+          });
+        });
+      } catch (err) {
+        console.error(`Error fetching problems for platform ${pConfig.platform}:`, err);
       }
-
-      return uniqueProblems;
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
-      // Return empty array on error to maintain app stability
-      return [];
     }
-  }
 
-  /**
-   * Add a new platform service to the engine
-   * @param service - The platform service to add
-   */
-  addService(service: ProblemService): void {
-    this.services.push(service);
-  }
+    const topicsSet = new Set<string>();
+    sessionQuestions.forEach(q => q.topics.forEach(t => topicsSet.add(t)));
 
-  /**
-   * Remove a platform service from the engine
-   * @param service - The platform service to remove
-   */
-  removeService(service: ProblemService): void {
-    const index = this.services.indexOf(service);
-    if (index > -1) {
-      this.services.splice(index, 1);
-    }
-  }
-
-  /**
-   * Get all registered services
-   * @returns Array of registered platform services
-   */
-  getServices(): ProblemService[] {
-    return [...this.services];
+    return {
+      sessionId: `session-${todayStr}`,
+      date: todayStr,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      platformConfigs: config.platformConfigs,
+      questions: sessionQuestions,
+      metadata: {
+        totalQuestions: sessionQuestions.length,
+        completedCount: 0,
+        skippedCount: 0,
+        inProgressCount: 0,
+        topicsCovered: Array.from(topicsSet)
+      }
+    };
   }
 }
