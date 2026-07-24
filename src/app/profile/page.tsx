@@ -4,53 +4,15 @@ import * as React from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SearchableSingleSelect, SearchableMultiSelect } from "@/components/ui/MultiSelect";
-import { useAppContext, HistoryItem, RecommendationConfig } from "@/context/AppContext";
-import { Award, Code2, BookOpen, Layers, Database, Download, Upload, RefreshCw, Settings } from "lucide-react";
+import { useAppContext, HistoryItem, RecommendationConfig, RecommendationPlatformConfig } from "@/context/AppContext";
+import { Platform } from "@/services/types";
+import { languagesList, dsaTopicsList } from "@/constants/topics";
+import { checkRecommendationSettingsCooldown } from "@/services/cooldownService";
+import { Award, Code2, BookOpen, Layers, Database, Download, Upload, RefreshCw, Settings, Info, Clock, Plus, Trash2 } from "lucide-react";
 
-const languagesList = ["Java", "C++", "Python", "JavaScript", "C#", "Go", "Rust"];
-
-const dsaTopicsList = [
-  "Arrays",
-  "Strings",
-  "Sorting",
-  "Searching",
-  "Binary Search",
-  "Recursion",
-  "Backtracking",
-  "Two Pointers",
-  "Sliding Window",
-  "Prefix Sum",
-  "Hashing",
-  "Stack",
-  "Queue",
-  "Deque",
-  "Linked List",
-  "Doubly Linked List",
-  "Circular Linked List",
-  "Trees",
-  "Binary Trees",
-  "BST",
-  "Heap",
-  "Priority Queue",
-  "Trie",
-  "Graph",
-  "DFS",
-  "BFS",
-  "Union Find",
-  "Topological Sort",
-  "Shortest Path",
-  "Greedy",
-  "Bit Manipulation",
-  "Math",
-  "Number Theory",
-  "Matrix",
-  "Dynamic Programming",
-  "Intervals",
-  "Monotonic Stack",
-  "Monotonic Queue",
-  "Segment Tree",
-  "Fenwick Tree",
-  "Disjoint Set"
+const AVAILABLE_PLATFORMS: { id: Platform; name: string }[] = [
+  { id: "leetcode", name: "LeetCode" },
+  { id: "codeforces", name: "Codeforces" }
 ];
 
 interface ProfileFormProps {
@@ -60,7 +22,7 @@ interface ProfileFormProps {
   resetProfile: () => void;
   importProfile: (lang: string, topics: string[], history: HistoryItem[]) => void;
   history: HistoryItem[];
-  updateRecommendationConfig: (config: Partial<RecommendationConfig>) => void;
+  updateRecommendationConfig: (platformConfigs: RecommendationPlatformConfig[]) => { success: boolean; message: string };
   recommendationConfig: RecommendationConfig;
 }
 
@@ -76,9 +38,12 @@ function ProfileForm({
 }: ProfileFormProps) {
   const [localLanguage, setLocalLanguage] = React.useState<string>(selectedLanguage);
   const [localTopics, setLocalTopics] = React.useState<string[]>(selectedTopics);
-  const [localConfig, setLocalConfig] = React.useState<import("@/context/AppContext").RecommendationConfig>(recommendationConfig);
+  const [localPlatformConfigs, setLocalPlatformConfigs] = React.useState<RecommendationPlatformConfig[]>(
+    recommendationConfig.platformConfigs || []
+  );
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const cooldownStatus = checkRecommendationSettingsCooldown(recommendationConfig.lastRecommendationSettingsUpdate);
 
   const handleSave = () => {
     saveProfile(localLanguage, localTopics);
@@ -87,7 +52,7 @@ function ProfileForm({
   const handleCancel = () => {
     setLocalLanguage(selectedLanguage);
     setLocalTopics(selectedTopics);
-    setLocalConfig(recommendationConfig);
+    setLocalPlatformConfigs(recommendationConfig.platformConfigs || []);
   };
 
   const handleExport = () => {
@@ -119,25 +84,21 @@ function ProfileForm({
       try {
         const json = JSON.parse(e.target!.result as string);
 
-        // Versioning validation
         if (json.version !== 1) {
           alert("Incompatible profile version. Only version 1 profiles are supported.");
           return;
         }
 
-        // Schema validation
         if (typeof json.language !== "string" || !Array.isArray(json.topics)) {
           alert("Invalid profile schema file format.");
           return;
         }
 
-        // Validate that language is one of the supported languages
         if (!languagesList.includes(json.language)) {
           alert(`Invalid programming language in profile: ${json.language}`);
           return;
         }
 
-        // Validate that topics are part of dsaTopicsList
         const validTopics = json.topics.filter((t: unknown): t is string => typeof t === "string" && dsaTopicsList.includes(t));
 
         importProfile(json.language, validTopics, json.history || []);
@@ -146,7 +107,6 @@ function ProfileForm({
       }
     };
     reader.readAsText(file);
-    // Reset file input value so same file can be uploaded again
     event.target.value = "";
   };
 
@@ -157,7 +117,49 @@ function ProfileForm({
   };
 
   const handleSaveConfig = () => {
-    updateRecommendationConfig(localConfig);
+    updateRecommendationConfig(localPlatformConfigs);
+  };
+
+  const handleUpdateCard = (index: number, field: keyof RecommendationPlatformConfig, value: unknown) => {
+    setLocalPlatformConfigs(prev => {
+      const next = [...prev];
+      if (!next[index]) return prev;
+
+      if (field === "questionsPerDay") {
+        const numVal = Math.max(1, Math.min(10, parseInt(value as string) || 1));
+        next[index] = { ...next[index], questionsPerDay: numVal };
+      } else if (field === "platform") {
+        next[index] = { ...next[index], platform: value as Platform };
+      } else if (field === "difficulty") {
+        next[index] = { ...next[index], difficulty: value as RecommendationPlatformConfig["difficulty"] };
+      }
+
+      return next;
+    });
+  };
+
+  const handleAddPlatform = () => {
+    if (localPlatformConfigs.length >= AVAILABLE_PLATFORMS.length) return;
+
+    // Find the first platform not currently added
+    const usedPlatforms = localPlatformConfigs.map(c => c.platform);
+    const available = AVAILABLE_PLATFORMS.find(p => !usedPlatforms.includes(p.id));
+
+    if (available) {
+      setLocalPlatformConfigs(prev => [
+        ...prev,
+        {
+          platform: available.id,
+          questionsPerDay: 5,
+          difficulty: "Mixed"
+        }
+      ]);
+    }
+  };
+
+  const handleRemovePlatform = (index: number) => {
+    if (localPlatformConfigs.length <= 1) return;
+    setLocalPlatformConfigs(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -233,127 +235,148 @@ function ProfileForm({
                 <CardTitle className="text-base">Section 3: Recommendation Settings</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                Configure how the AI coach recommends problems based on your preferences.
-              </p>
-
-              {/* Platform Selection */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-slate-500 mb-1">Platforms</p>
-                <div className="flex flex-wrap gap-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={localConfig.platforms.includes("leetcode")}
-                      onChange={(e) => {
-                        const platforms = [...localConfig.platforms];
-                        if (e.target.checked) {
-                          if (!platforms.includes("leetcode")) platforms.push("leetcode");
-                        } else {
-                          const index = platforms.indexOf("leetcode");
-                          if (index > -1) platforms.splice(index, 1);
-                        }
-                        setLocalConfig(prev => ({ ...prev, platforms }));
-                      }}
-                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                    />
-                    <span>LeetCode</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={localConfig.platforms.includes("codeforces")}
-                      onChange={(e) => {
-                        const platforms = [...localConfig.platforms];
-                        if (e.target.checked) {
-                          if (!platforms.includes("codeforces")) platforms.push("codeforces");
-                        } else {
-                          const index = platforms.indexOf("codeforces");
-                          if (index > -1) platforms.splice(index, 1);
-                        }
-                        setLocalConfig(prev => ({ ...prev, platforms }));
-                      }}
-                      className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
-                    />
-                    <span>Codeforces</span>
-                  </label>
+            <CardContent className="space-y-5">
+              
+              {/* Information Notice Card */}
+              <div className="bg-sky-50/70 border border-sky-100/80 rounded-2xl p-4 space-y-2 text-xs">
+                <div className="flex items-center gap-2 font-bold text-sky-800 text-sm">
+                  <Info className="w-4 h-4 text-sky-600 shrink-0" />
+                  <span>Recommendation Rules</span>
                 </div>
-                {localConfig.platforms.length === 0 && (
-                  <p className="text-xs text-red-500 mt-1">Please select at least one platform</p>
+                <ul className="list-disc list-inside space-y-1 text-slate-600 font-medium leading-relaxed pl-0.5">
+                  <li>Maximum 10 questions per platform can be selected.</li>
+                  <li>Recommendation settings can only be changed once every 24 hours.</li>
+                  <li>Language and Known Topics can still be edited at any time.</li>
+                  <li>Additional platforms can be supported in future updates.</li>
+                </ul>
+              </div>
+
+              {/* Cooldown Status Warning Banner */}
+              {!cooldownStatus.canUpdate && (
+                <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3 text-amber-800 text-xs">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-amber-900">Recommendation Settings Locked (24-Hour Cooldown)</p>
+                    <p className="text-amber-700 leading-relaxed">
+                      Settings were recently updated. Next update available in <span className="font-bold text-amber-900">{cooldownStatus.formattedRemainingTime}</span> (at {cooldownStatus.nextAvailableTimeFormatted}). Language and Known Topics remain fully editable.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Platform Configuration Cards */}
+              <div className="space-y-4 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Active Platform Configurations ({localPlatformConfigs.length})
+                  </span>
+                </div>
+
+                {localPlatformConfigs.map((cfg, index) => {
+                  return (
+                    <div
+                      key={index}
+                      className="border border-slate-200/80 bg-white rounded-2xl p-4 space-y-4 transition-all hover:border-slate-300"
+                    >
+                      {/* Card Top Row */}
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                          Platform #{index + 1}
+                        </span>
+
+                        {/* Remove button: rendered only if more than 1 platform exists */}
+                        {localPlatformConfigs.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePlatform(index)}
+                            className="flex items-center gap-1 text-xs font-semibold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                            title="Remove platform configuration"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Card Inputs Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {/* Platform Dropdown */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-slate-600">Platform</label>
+                          <select
+                            value={cfg.platform}
+                            onChange={(e) => handleUpdateCard(index, "platform", e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50 font-medium text-slate-700"
+                          >
+                            {AVAILABLE_PLATFORMS.map(p => {
+                              const isUsedByOther = localPlatformConfigs.some((item, i) => i !== index && item.platform === p.id);
+                              return (
+                                <option key={p.id} value={p.id} disabled={isUsedByOther}>
+                                  {p.name} {isUsedByOther ? "(Already added)" : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        {/* Questions Per Day */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-slate-600">
+                            Daily Questions <span className="text-slate-400 font-normal">(1 - 10)</span>
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={cfg.questionsPerDay}
+                            onChange={(e) => handleUpdateCard(index, "questionsPerDay", e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50 font-medium text-slate-700"
+                          />
+                        </div>
+
+                        {/* Difficulty Dropdown */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-semibold text-slate-600">Difficulty</label>
+                          <select
+                            value={cfg.difficulty}
+                            onChange={(e) => handleUpdateCard(index, "difficulty", e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50 font-medium text-slate-700"
+                          >
+                            <option value="Mixed">Mixed (All Levels)</option>
+                            <option value="Easy">Easy</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Hard">Hard</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Add Platform Button: hidden when all available platforms are added */}
+                {localPlatformConfigs.length < AVAILABLE_PLATFORMS.length && (
+                  <button
+                    type="button"
+                    onClick={handleAddPlatform}
+                    className="w-full py-2.5 px-4 border border-dashed border-sky-300 hover:border-sky-500 bg-sky-50/40 hover:bg-sky-50 text-sky-700 font-semibold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Another Platform</span>
+                  </button>
                 )}
               </div>
 
-              {/* Questions per Platform */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-slate-500 mb-1">Questions per Platform</p>
-                <div className="flex items-center gap-3">
-                  <label className="text-sm text-slate-700">
-                    Count:
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={localConfig.countPerPlatform}
-                    onChange={(e) => {
-                      const value = Math.max(1, Math.min(20, parseInt(e.target.value) || 1));
-                      setLocalConfig(prev => ({ ...prev, countPerPlatform: value }));
-                    }}
-                    className="w-20 px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50"
-                  />
-                </div>
-              </div>
-
-              {/* Difficulty Filter */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-slate-500 mb-1">Difficulty Filter</p>
-                <div className="flex items-center gap-3">
-                  <label className="text-sm text-slate-700">
-                    Level:
-                  </label>
-                  <select
-                    value={localConfig.difficulty}
-                    onChange={(e) => setLocalConfig(prev => ({ ...prev, difficulty: e.target.value as "Easy" | "Medium" | "Hard" | "Mixed" }))}
-                    className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50"
-                  >
-                    <option value="Mixed">Mixed (All Difficulties)</option>
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Maximum Total Questions */}
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-slate-500 mb-1">Maximum Total Questions</p>
-                <div className="flex items-center gap-3">
-                  <label className="text-sm text-slate-700">
-                    Limit:
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={localConfig.totalLimit}
-                    onChange={(e) => {
-                      const value = Math.max(1, Math.min(50, parseInt(e.target.value) || 10));
-                      setLocalConfig(prev => ({ ...prev, totalLimit: value }));
-                    }}
-                    className="w-20 px-3 py-1.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-slate-50"
-                  />
-                </div>
-              </div>
             </CardContent>
             <CardFooter>
               <div className="flex items-center justify-between pt-2">
-                <button
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={handleSaveConfig}
-                  className="btn-primary px-4 py-2 text-sm font-medium rounded-lg"
+                  className="cursor-pointer font-medium"
                 >
-                  Save Configuration
-                </button>
+                  Save Recommendation Settings
+                </Button>
               </div>
             </CardFooter>
           </Card>
@@ -484,7 +507,7 @@ export default function Profile() {
 
   return (
     <ProfileForm
-      key={`${selectedLanguage}-${selectedTopics.join(",")}`}
+      key={`${selectedLanguage}-${selectedTopics.join(",")}-${JSON.stringify(recommendationConfig)}`}
       selectedLanguage={selectedLanguage}
       selectedTopics={selectedTopics}
       saveProfile={saveProfile}

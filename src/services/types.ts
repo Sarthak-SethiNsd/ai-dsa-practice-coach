@@ -33,9 +33,15 @@ export interface ProblemService {
   getProblems(request: RecommendationRequest): Promise<Problem[]>;
 }
 
-// Adapter interface for converting platform-specific data to common Problem format
-export interface ProblemAdapter<T> {
-  adapt(rawData: T): Problem;
+export interface RecommendationPlatformConfig {
+  platform: Platform;
+  questionsPerDay: number;
+  difficulty: Difficulty | 'Mixed';
+}
+
+export interface RecommendationConfig {
+  platformConfigs: RecommendationPlatformConfig[];
+  lastRecommendationSettingsUpdate?: string;
 }
 
 // Adapter interface for converting platform-specific data to common Problem format

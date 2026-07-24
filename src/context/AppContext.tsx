@@ -3,8 +3,17 @@
 import * as React from "react";
 import { LeetCodeService } from "@/services/leetcode/leetcodeService";
 import { CodeforcesService } from "@/services/codeforces/codeforcesService";
-import { RecommendationEngine } from "@/services/recommendationEngine";
-import { RecommendationRequest, ProblemService, Platform } from "@/services/types";
+import {
+  RecommendationRequest,
+  ProblemService,
+  Platform,
+  RecommendationPlatformConfig,
+  RecommendationConfig
+} from "@/services/types";
+import { recommendationStorage } from "@/services/recommendationStorage";
+import { checkRecommendationSettingsCooldown } from "@/services/cooldownService";
+
+export type { RecommendationPlatformConfig, RecommendationConfig };
 
 export interface Problem {
   id: number;
@@ -40,12 +49,13 @@ export interface ToastState {
   message: string;
 }
 
-export interface RecommendationConfig {
-  platforms: ("leetcode" | "codeforces")[];
-  countPerPlatform: number;
-  difficulty: "Easy" | "Medium" | "Hard" | "Mixed";
-  totalLimit: number;
-}
+export const DEFAULT_RECOMMENDATION_CONFIG: RecommendationConfig = {
+  platformConfigs: [
+    { platform: "leetcode", questionsPerDay: 5, difficulty: "Mixed" },
+    { platform: "codeforces", questionsPerDay: 5, difficulty: "Mixed" }
+  ],
+  lastRecommendationSettingsUpdate: undefined
+};
 
 interface AppContextType {
   selectedLanguage: string;
@@ -71,7 +81,7 @@ interface AppContextType {
   clearToast: () => void;
   resetProfile: () => void;
   importProfile: (language: string, topics: string[], history: HistoryItem[]) => void;
-  updateRecommendationConfig: (config: Partial<RecommendationConfig>) => void;
+  updateRecommendationConfig: (platformConfigs: RecommendationPlatformConfig[]) => { success: boolean; message: string };
   // Problem tracking functions
   startPractice: (problemId: number) => void;
   markCompleted: (problemId: number) => void;
@@ -84,59 +94,40 @@ interface AppContextType {
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
 
-// Helper to determine active platforms based on config
-const getActivePlatforms = (config: RecommendationConfig): ("leetcode" | "codeforces")[] => {
-  if (config.platforms.includes("leetcode") && config.platforms.includes("codeforces")) {
-    return ["leetcode", "codeforces"];
-  }
-  if (config.platforms.includes("leetcode")) {
-    return ["leetcode"];
-  }
-  if (config.platforms.includes("codeforces")) {
-    return ["codeforces"];
-  }
-  // Default to both if none specified
-  return ["leetcode", "codeforces"];
-};
-
-// Helper to determine if difficulty is "Mixed" (no filter)
-const isMixedDifficulty = (difficulty: string): boolean => {
-  return difficulty === "Mixed";
-};
-
-// Helper to determine active difficulty (undefined if Mixed)
-const getActiveDifficulty = (config: RecommendationConfig): undefined | "Easy" | "Medium" | "Hard" => {
-  return isMixedDifficulty(config.difficulty) ? undefined : config.difficulty as "Easy" | "Medium" | "Hard";
-};
-
-// Helper to determine active problems matching selected topics
+// Helper to determine active problems matching selected topics & recommendation config
 const getFilteredProblems = async (topics: string[], config: RecommendationConfig): Promise<Problem[]> => {
-  if (topics.length === 0) return [];
+  if (topics.length === 0 || !config.platformConfigs || config.platformConfigs.length === 0) return [];
 
-  // Initialize services based on config
-  const services: ProblemService[] = [];
+  const platformPromises = config.platformConfigs.map(async (pConfig) => {
+    let service: ProblemService;
+    if (pConfig.platform === "leetcode") {
+      service = new LeetCodeService();
+    } else if (pConfig.platform === "codeforces") {
+      service = new CodeforcesService();
+    } else {
+      return [];
+    }
 
-  if (config.platforms.includes("leetcode")) {
-    services.push(new LeetCodeService());
-  }
-  if (config.platforms.includes("codeforces")) {
-    services.push(new CodeforcesService());
-  }
+    const request: RecommendationRequest = {
+      topics: topics,
+      platforms: [pConfig.platform],
+      countPerPlatform: pConfig.questionsPerDay,
+      difficulty: pConfig.difficulty === "Mixed" ? undefined : pConfig.difficulty
+    };
 
-  // Create recommendation engine with active services
-  const recommendationEngine = new RecommendationEngine(services);
+    return await service.getProblems(request);
+  });
 
-  // Create request matching the current filtering logic
-  const request: RecommendationRequest = {
-    topics: topics,
-    platforms: getActivePlatforms(config),
-    countPerPlatform: config.countPerPlatform,
-    difficulty: getActiveDifficulty(config),
-    totalLimit: config.totalLimit
-  };
+  const results = await Promise.all(platformPromises);
+  const allProblems = results.flat();
 
-  // Get recommendations from all platforms
-  return await recommendationEngine.getRecommendations(request);
+  // Deduplicate by problem ID and sort
+  const uniqueProblems = Array.from(
+    new Map(allProblems.map(p => [p.id, p])).values()
+  );
+  uniqueProblems.sort((a, b) => a.id - b.id);
+
+  return uniqueProblems;
 };
 
 // Generate static history items using standard mock problems
@@ -144,7 +135,6 @@ const getMockHistory = async (topics: string[], config: RecommendationConfig): P
   const filtered = await getFilteredProblems(topics, config);
   if (filtered.length === 0) return [];
 
-  // Return history mappings (first two problems as in original)
   const now = new Date();
   const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
@@ -192,12 +182,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [history, setHistory] = React.useState<HistoryItem[]>([]);
   const [selectedReviewProblem, setSelectedReviewProblem] = React.useState<Problem | null>(null);
   const [toast, setToast] = React.useState<ToastState>({ show: false, message: "" });
-  const [recommendationConfig, setRecommendationConfig] = React.useState<RecommendationConfig>({
-    platforms: ["leetcode", "codeforces"],
-    countPerPlatform: 5,
-    difficulty: "Mixed",
-    totalLimit: 10
-  });
+  const [recommendationConfig, setRecommendationConfig] = React.useState<RecommendationConfig>(DEFAULT_RECOMMENDATION_CONFIG);
+
   // Problem status tracking: maps problemId to status object
   const [problemStatuses, setProblemStatuses] = React.useState<Record<string, {
     status: "Not Started" | "In Progress" | "Completed";
@@ -214,7 +200,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       mountedRef.current = false;
     };
-  }, []); // Empty deps array is fine here since we're just setting a ref
+  }, []);
 
   // Memoize problems based on selectedTopics and recommendationConfig
   const [problems, setProblems] = React.useState<Problem[]>([]);
@@ -244,7 +230,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         if (isMounted) {
           setError(err instanceof Error ? err.message : "Failed to load problems");
           setLoading(false);
-          // Show toast for error
           setToast({
             show: true,
             message: "Failed to load problems. Please try again."
@@ -260,13 +245,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [selectedTopics, recommendationConfig, reloadTrigger, setToast]);
 
-  // Synchronise state from localStorage on first render
+  // Synchronise state on first render
   React.useEffect(() => {
     const savedLanguage = localStorage.getItem("dsa_language");
     const savedTopics = localStorage.getItem("dsa_topics");
     const savedHistory = localStorage.getItem("dsa_history");
-    const savedReviewId = localStorage.getItem("dsa_review_problem_id");
-    const savedConfig = localStorage.getItem("dsa_recommendation_config");
     const savedProblemStatuses = localStorage.getItem("dsa_problem_status");
     const savedNotes = localStorage.getItem("dsa_notes");
 
@@ -289,7 +272,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        // Define type for old history items (without new fields)
         interface OldHistoryItem {
           id: number;
           problemId: number;
@@ -298,9 +280,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           difficulty: "Easy" | "Medium" | "Hard";
           status: "Solved" | "Incomplete";
         }
-        // Migrate old history items to new format
         activeHistory = parsed.map((item: OldHistoryItem) => {
-          // Parse the existing date string (if valid) to get a Date object for startedAt fallback
           let fallbackDate: Date;
           try {
             fallbackDate = new Date(item.date);
@@ -315,24 +295,16 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
             ...item,
             startedAt: fallbackDate.toISOString(),
             completedAt: item.status === "Solved" ? fallbackDate.toISOString() : undefined,
-            platform: "leetcode", // default, we don't have the old platform
-            topics: [] // default, we don't have the old topics
+            platform: "leetcode",
+            topics: []
           } as HistoryItem;
         });
       } catch (e) {
         console.error("Failed to parse saved history", e);
-        // Fallback to empty history if parsing fails
         activeHistory = [];
       }
     } else {
-      // Initialize history with default topics and default config
-      const defaultConfig: RecommendationConfig = {
-        platforms: ["leetcode", "codeforces"],
-        countPerPlatform: 5,
-        difficulty: "Mixed",
-        totalLimit: 10
-      };
-      getMockHistory(activeTopics, defaultConfig).then(h => {
+      getMockHistory(activeTopics, DEFAULT_RECOMMENDATION_CONFIG).then(h => {
         if (mountedRef.current) {
           setHistory(h);
           localStorage.setItem("dsa_history", JSON.stringify(h));
@@ -340,24 +312,30 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       });
     }
 
-    let activeConfig: RecommendationConfig = {
-      platforms: ["leetcode", "codeforces"],
-      countPerPlatform: 5,
-      difficulty: "Mixed",
-      totalLimit: 10
-    };
-    if (savedConfig) {
-      try {
-        activeConfig = JSON.parse(savedConfig);
-        // Ensure all required fields are present
-        if (!activeConfig.platforms) activeConfig.platforms = ["leetcode", "codeforces"];
-        if (activeConfig.countPerPlatform === undefined) activeConfig.countPerPlatform = 5;
-        if (!activeConfig.difficulty) activeConfig.difficulty = "Mixed";
-        if (activeConfig.totalLimit === undefined) activeConfig.totalLimit = 10;
-      } catch (e) {
-        console.error("Failed to parse saved recommendation config", e);
+    let activeConfig: RecommendationConfig = DEFAULT_RECOMMENDATION_CONFIG;
+    recommendationStorage.loadConfig().then((loadedConfig) => {
+      if (loadedConfig) {
+        if (loadedConfig.platformConfigs && Array.isArray(loadedConfig.platformConfigs) && loadedConfig.platformConfigs.length > 0) {
+          activeConfig = loadedConfig;
+        } else if ((loadedConfig as unknown as Record<string, unknown>).platforms) {
+          // Migration from legacy schema
+          const legacyObj = loadedConfig as unknown as { platforms: Platform[]; countPerPlatform?: number; difficulty?: "Easy" | "Medium" | "Hard" | "Mixed"; lastRecommendationSettingsUpdate?: string };
+          const migrated: RecommendationPlatformConfig[] = (legacyObj.platforms || []).map(p => ({
+            platform: p,
+            questionsPerDay: legacyObj.countPerPlatform ?? 5,
+            difficulty: legacyObj.difficulty ?? "Mixed"
+          }));
+          activeConfig = {
+            platformConfigs: migrated.length > 0 ? migrated : DEFAULT_RECOMMENDATION_CONFIG.platformConfigs,
+            lastRecommendationSettingsUpdate: legacyObj.lastRecommendationSettingsUpdate
+          };
+        }
       }
-    }
+
+      if (mountedRef.current) {
+        setRecommendationConfig(activeConfig);
+      }
+    });
 
     let activeProblemStatuses: Record<string, {
       status: "Not Started" | "In Progress" | "Completed";
@@ -381,13 +359,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    const activeReview: Problem | null = null;
-    if (savedReviewId) {
-      // We'll fetch the problem when needed since we don't have all problems loaded yet
-      // For now, we'll just store the ID and fetch when needed
-    }
-
-    // Defer state updates to avoid synchronous cascading renders during hydration
     const timer = setTimeout(() => {
       if (savedLanguage) {
         setSelectedLanguage(savedLanguage);
@@ -396,10 +367,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       if (activeHistory.length > 0) {
         setHistory(activeHistory);
       }
-      if (activeReview) {
-        setSelectedReviewProblem(activeReview);
-      }
-      setRecommendationConfig(activeConfig);
       setProblemStatuses(activeProblemStatuses);
       setNotes(activeNotes);
     }, 0);
@@ -435,7 +402,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const selectReviewProblem = (problemId: number) => {
-    // Find the problem in our current problems list
     const match = problems.find(p => p.id === problemId);
     if (match) {
       setSelectedReviewProblem(match);
@@ -452,29 +418,22 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       "Recursion"
     ];
 
-    const defaultConfig: RecommendationConfig = {
-      platforms: ["leetcode", "codeforces"],
-      countPerPlatform: 5,
-      difficulty: "Mixed",
-      totalLimit: 10
-    };
-
-    getMockHistory(defaultTopics, defaultConfig).then(defaultHistory => {
+    getMockHistory(defaultTopics, DEFAULT_RECOMMENDATION_CONFIG).then(defaultHistory => {
       setSelectedLanguage("JavaScript");
       setSelectedTopics(defaultTopics);
       setHistory(defaultHistory);
       setSelectedReviewProblem(null);
-      setRecommendationConfig(defaultConfig);
-      setProblemStatuses({}); // Reset problem statuses
-      setNotes({}); // Reset notes
+      setRecommendationConfig(DEFAULT_RECOMMENDATION_CONFIG);
+      setProblemStatuses({});
+      setNotes({});
 
       localStorage.removeItem("dsa_language");
       localStorage.removeItem("dsa_topics");
       localStorage.removeItem("dsa_history");
       localStorage.removeItem("dsa_review_problem_id");
-      localStorage.removeItem("dsa_recommendation_config");
       localStorage.removeItem("dsa_problem_status");
       localStorage.removeItem("dsa_notes");
+      recommendationStorage.clearConfig();
 
       setToast({
         show: true,
@@ -487,9 +446,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedLanguage(language);
     setSelectedTopics(topics);
 
-    // Convert imported history items to ensure they match current structure
     const convertedHistory: HistoryItem[] = importedHistory.map((item): HistoryItem => {
-      // Parse the existing date string (if valid) to get a Date object for startedAt fallback
       let fallbackDate: Date;
       try {
         fallbackDate = new Date(item.date);
@@ -502,11 +459,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
       return {
         ...item,
-        // Ensure new fields exist with sensible defaults
         startedAt: item.startedAt || fallbackDate.toISOString(),
         completedAt: item.completedAt || (item.status === "Solved" ? fallbackDate.toISOString() : undefined),
-        platform: item.platform || "leetcode", // Default platform if missing
-        topics: Array.isArray(item.topics) ? item.topics : [] // Ensure topics is an array
+        platform: item.platform || "leetcode",
+        topics: Array.isArray(item.topics) ? item.topics : []
       };
     });
 
@@ -524,26 +480,45 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  const updateRecommendationConfig = (config: Partial<RecommendationConfig>) => {
-    setRecommendationConfig(prev => {
-      const newConfig = { ...prev, ...config };
-      localStorage.setItem("dsa_recommendation_config", JSON.stringify(newConfig));
-      return newConfig;
+  const updateRecommendationConfig = (newPlatformConfigs: RecommendationPlatformConfig[]): { success: boolean; message: string } => {
+    const cooldownCheck = checkRecommendationSettingsCooldown(recommendationConfig.lastRecommendationSettingsUpdate);
+
+    if (!cooldownCheck.canUpdate) {
+      const message = `Recommendation settings can only be changed once every 24 hours. Next update available in ${cooldownCheck.formattedRemainingTime} (at ${cooldownCheck.nextAvailableTimeFormatted}).`;
+      setToast({
+        show: true,
+        message
+      });
+      return { success: false, message };
+    }
+
+    const nowIso = new Date().toISOString();
+    const updatedConfig: RecommendationConfig = {
+      platformConfigs: newPlatformConfigs,
+      lastRecommendationSettingsUpdate: nowIso
+    };
+
+    setRecommendationConfig(updatedConfig);
+    recommendationStorage.saveConfig(updatedConfig);
+
+    const message = "Recommendation settings saved successfully!";
+    setToast({
+      show: true,
+      message
     });
+    return { success: true, message };
   };
 
   const startPractice = (problemId: number) => {
-    // Check if there's already a history item for this problem
     const existingHistoryIndex = history.findIndex(item => item.problemId === problemId);
     if (existingHistoryIndex === -1) {
-      // No existing history item, create one
       const problem = problems.find(p => p.id === problemId);
       if (problem) {
         const now = new Date();
         const formattedDate = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
         const newHistoryItem: HistoryItem = {
-          id: Date.now(), // Generate unique ID
+          id: Date.now(),
           problemId: problem.id,
           problemTitle: problem.title,
           date: formattedDate,
@@ -559,7 +534,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    // Update problem status tracking (existing logic)
     setProblemStatuses(prev => {
       const newStatuses = { ...prev };
       const problemIdStr = problemId.toString();
@@ -569,8 +543,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           startedAt: new Date().toISOString()
         };
       } else {
-        // If already started, just update the startedAt? Or leave as is?
-        // We'll update the startedAt to now if restarting.
         newStatuses[problemIdStr] = {
           ...newStatuses[problemIdStr],
           status: "In Progress",
@@ -582,26 +554,23 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const markCompleted = (problemId: number) => {
-    // Update history item status to Solved and set completion timestamp
     setHistory(prev => prev.map(item =>
       item.problemId === problemId
         ? {
             ...item,
             status: "Solved",
             completedAt: new Date().toISOString()
-            // Note: We keep the original 'date' field (started date) for display consistency
           }
         : item
     ));
 
-    // Update problem status tracking (existing logic)
     setProblemStatuses(prev => {
       const newStatuses = { ...prev };
       const problemIdStr = problemId.toString();
       if (!newStatuses[problemIdStr]) {
         newStatuses[problemIdStr] = {
           status: "Completed",
-          startedAt: new Date().toISOString(), // Assume started now if not started
+          startedAt: new Date().toISOString(),
           completedAt: new Date().toISOString()
         };
       } else {
@@ -614,14 +583,12 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       return newStatuses;
     });
 
-    // Add to history if not already present (should already be present from startPractice)
     const problem = problems.find(p => p.id === problemId);
     if (problem) {
-      // Check if we already added this problem to history in startPractice
       const alreadyInHistory = history.some(item => item.problemId === problemId);
       if (!alreadyInHistory) {
         const newHistoryItem: HistoryItem = {
-          id: Date.now(), // Simple ID generation
+          id: Date.now(),
           problemId: problem.id,
           problemTitle: problem.title,
           date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
@@ -632,7 +599,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           platform: problem.platform,
           topics: problem.topics
         };
-        setHistory(prev => [newHistoryItem, ...prev]); // Add to the beginning
+        setHistory(prev => [newHistoryItem, ...prev]);
       }
     }
   };
@@ -645,7 +612,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setNotes(prev => {
       const newNotes = { ...prev };
       if (note.trim() === "") {
-        // If note is empty, remove it
         delete newNotes[problemId.toString()];
       } else {
         newNotes[problemId.toString()] = note;
