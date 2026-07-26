@@ -13,6 +13,7 @@ import {
 } from "@/services/types";
 import { recommendationStorage } from "@/services/recommendationStorage";
 import { dailySessionStorage } from "@/services/dailyRecommendationStorage";
+import { sessionArchiveStorage } from "@/services/sessionArchiveStorage";
 import { checkRecommendationSettingsCooldown } from "@/services/cooldownService";
 import { getTodayDateString } from "@/utils/dateUtils";
 
@@ -330,6 +331,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem("dsa_notes");
     recommendationStorage.clearConfig();
     dailySessionStorage.clearSession();
+    sessionArchiveStorage.clear();
 
     setToast({
       show: true,
@@ -423,6 +425,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
     setDailySession(updatedSession);
     dailySessionStorage.saveSession(updatedSession);
+    sessionArchiveStorage.upsertSession(updatedSession);
   };
 
   const startPractice = (problemId: number) => {
