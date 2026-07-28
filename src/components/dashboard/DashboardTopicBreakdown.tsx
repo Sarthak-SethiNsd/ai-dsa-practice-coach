@@ -1,7 +1,7 @@
 import * as React from "react";
 import { DashboardSummary } from "@/services/analytics/dashboardSummary";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Layers } from "lucide-react";
+import { Layers, Info } from "lucide-react";
 
 interface DashboardTopicBreakdownProps {
   summary: DashboardSummary;
@@ -23,33 +23,41 @@ export function DashboardTopicBreakdown({ summary }: DashboardTopicBreakdownProp
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3 pt-1 flex-1">
+      <CardContent className="space-y-3 pt-1 flex-1 flex flex-col justify-between">
         {topTopics.length > 0 ? (
-          topTopics.map(({ topic, count }) => {
-            const barWidth = Math.max(8, Math.round((count / maxCount) * 100));
+          <div className="space-y-3">
+            {topTopics.map(({ topic, count }) => {
+              const barWidth = Math.max(8, Math.round((count / maxCount) * 100));
 
-            return (
-              <div key={topic} className="space-y-1">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-700 truncate">{topic}</span>
-                  <span className="font-extrabold text-slate-500 tabular-nums ml-2">
-                    {count} {count === 1 ? "q" : "qs"}
-                  </span>
+              return (
+                <div key={topic} className="space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-slate-700 truncate">{topic}</span>
+                    <span className="font-extrabold text-slate-500 tabular-nums ml-2">
+                      {count} {count === 1 ? "q" : "qs"}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-sky-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-sky-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${barWidth}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         ) : (
           <div className="py-8 text-center text-xs text-slate-400">
             No topic practice recorded yet.
           </div>
         )}
+
+        {/* Descriptive Disclaimer Note */}
+        <div className="pt-2 mt-2 border-t border-slate-100 text-[10px] text-slate-400 font-medium flex items-start gap-1">
+          <Info className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+          <span>Topic totals may exceed total solved problems because a single problem can belong to multiple topics.</span>
+        </div>
       </CardContent>
     </Card>
   );

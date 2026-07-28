@@ -1195,10 +1195,10 @@ export class CodeforcesService implements ProblemService, QuestionProvider {
       );
     }
 
-    if (request.countPerPlatform && request.countPerPlatform > 0) {
-      filtered = filtered.slice(0, request.countPerPlatform);
-    }
-
-    return filtered;
+    return filtered.map(p => ({
+      ...p,
+      platformProblemId: p.platformProblemId || `CF-${p.id}`,
+      url: p.url || `https://codeforces.com/problemset/problem/${p.id}/A`
+    }));
   }
 }

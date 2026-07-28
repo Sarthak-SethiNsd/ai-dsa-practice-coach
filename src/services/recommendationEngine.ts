@@ -1,10 +1,11 @@
 import { QuestionProvider, RecommendationConfig, Problem, DailyPracticeSession, SessionQuestionItem } from './types';
-import { QuestionSelector } from './questionSelector';
 import { getTodayDateString } from '@/utils/dateUtils';
+import { aiRecommendationService } from './ai/aiRecommendationService';
 
 /**
  * RecommendationEngine operates against abstract QuestionProvider instances to generate
- * structured DailyPracticeSessions for the user's saved profile and per-platform recommendation settings.
+ * structured DailyPracticeSessions. Candidate problems come strictly from platform providers
+ * and are ranked/filtered by the AI Recommendation Service without generating fake problems.
  */
 export class RecommendationEngine {
   private providers: Map<string, QuestionProvider>;
@@ -24,11 +25,13 @@ export class RecommendationEngine {
   }
 
   /**
-   * Generates a new DailyPracticeSession based on selected topics and recommendation configuration.
+   * Generates a new DailyPracticeSession based on selected topics, programming language,
+   * and recommendation configuration.
    */
   async generateDailySession(
     selectedTopics: string[],
-    config: RecommendationConfig
+    config: RecommendationConfig,
+    selectedLanguage: string = "JavaScript"
   ): Promise<DailyPracticeSession> {
     const todayStr = getTodayDateString();
     const nowIso = new Date().toISOString();
@@ -58,35 +61,43 @@ export class RecommendationEngine {
       if (!provider) continue;
 
       try {
+        // 1. Fetch candidate problems from platform provider (LeetCode / Codeforces)
         const candidateProblems: Problem[] = await provider.getProblems({
           topics: selectedTopics,
           platforms: [pConfig.platform],
-          countPerPlatform: pConfig.questionsPerDay,
+          countPerPlatform: Math.max(10, pConfig.questionsPerDay * 3), // Fetch sufficient candidates for ranking
           difficulty: pConfig.difficulty === "Mixed" ? undefined : pConfig.difficulty
         });
 
-        const selectedProblems = QuestionSelector.selectQuestionsForPlatform(
+        // 2. Rank and filter candidate problems using AI Recommendation Service
+        const rankedItems = await aiRecommendationService.rankCandidateProblems(
           candidateProblems,
+          selectedLanguage,
           selectedTopics,
           pConfig
         );
 
-        selectedProblems.forEach(p => {
+        // 3. Map ranked items back into SessionQuestionItem structure
+        rankedItems.forEach(item => {
+          const match = candidateProblems.find(p => p.id === item.id || p.platformProblemId === item.platformProblemId);
           sessionQuestions.push({
-            problemId: p.id,
-            problemTitle: p.title,
-            platform: p.platform,
-            difficulty: p.difficulty,
-            topics: p.topics,
-            estimated: p.estimated,
-            solutions: p.solutions,
-            complexity: p.complexity,
-            takeaways: p.takeaways,
+            problemId: item.id,
+            platformProblemId: item.platformProblemId || match?.platformProblemId || `${item.platform}-${item.id}`,
+            problemTitle: item.title,
+            url: item.url || match?.url || (item.platform === "leetcode" ? `https://leetcode.com/problems/${item.id}` : `https://codeforces.com/problemset/problem/${item.id}/A`),
+            platform: item.platform,
+            difficulty: item.difficulty,
+            topics: item.topics,
+            estimated: match?.estimated || "20 mins",
+            solutions: match?.solutions || {},
+            complexity: match?.complexity || { time: "O(N)", space: "O(1)" },
+            takeaways: match?.takeaways || [],
+            selectionReason: item.selectionReason,
             status: "Not Started"
           });
         });
       } catch (err) {
-        console.error(`Error fetching problems for platform ${pConfig.platform}:`, err);
+        console.error(`Error generating AI recommendations for platform ${pConfig.platform}:`, err);
       }
     }
 

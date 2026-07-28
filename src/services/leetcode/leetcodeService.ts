@@ -1,9 +1,11 @@
 import { Problem, RecommendationRequest, ProblemService, QuestionProvider, Platform } from '../types';
 
-// Mock LeetCode problems dataset
+// Mock LeetCode problems dataset with stable platform IDs and URLs
 const LEETCODE_PROBLEMS: Problem[] = [
   {
     id: 1,
+    platformProblemId: "1",
+    url: "https://leetcode.com/problems/two-sum/",
     title: "Two Sum Optimization",
     difficulty: "Easy",
     topics: ["Arrays", "Hashing", "Two Pointers"],
@@ -38,6 +40,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 3,
+    platformProblemId: "1143",
+    url: "https://leetcode.com/problems/longest-common-subsequence/",
     title: "Longest Common Subsequence",
     difficulty: "Medium",
     topics: ["Dynamic Programming", "Strings"],
@@ -67,6 +71,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 5,
+    platformProblemId: "287",
+    url: "https://leetcode.com/problems/find-the-duplicate-number/",
     title: "Find Duplicate Element",
     difficulty: "Easy",
     topics: ["Arrays", "Hashing", "Two Pointers"],
@@ -88,6 +94,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 7,
+    platformProblemId: "124",
+    url: "https://leetcode.com/problems/binary-tree-maximum-path-sum/",
     title: "Binary Tree Maximum Path Sum",
     difficulty: "Hard",
     topics: ["Trees", "Binary Trees", "Recursion"],
@@ -112,6 +120,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 101,
+    platformProblemId: "239",
+    url: "https://leetcode.com/problems/sliding-window-maximum/",
     title: "Sliding Window Maximum",
     difficulty: "Hard",
     topics: ["Sliding Window", "Monotonic Queue", "Arrays", "Heap"],
@@ -135,6 +145,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 102,
+    platformProblemId: "242",
+    url: "https://leetcode.com/problems/valid-anagram/",
     title: "Valid Anagram",
     difficulty: "Easy",
     topics: ["Strings", "Hashing", "Sorting"],
@@ -157,6 +169,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 103,
+    platformProblemId: "11",
+    url: "https://leetcode.com/problems/container-with-most-water/",
     title: "Container With Most Water",
     difficulty: "Medium",
     topics: ["Two Pointers", "Arrays", "Greedy"],
@@ -178,6 +192,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 104,
+    platformProblemId: "206",
+    url: "https://leetcode.com/problems/reverse-linked-list/",
     title: "Reverse Linked List",
     difficulty: "Easy",
     topics: ["Linked List", "Recursion"],
@@ -200,6 +216,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 105,
+    platformProblemId: "704",
+    url: "https://leetcode.com/problems/binary-search/",
     title: "Binary Search",
     difficulty: "Easy",
     topics: ["Binary Search", "Searching", "Arrays"],
@@ -222,6 +240,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 106,
+    platformProblemId: "322",
+    url: "https://leetcode.com/problems/coin-change/",
     title: "Coin Change Optimization",
     difficulty: "Medium",
     topics: ["Dynamic Programming", "BFS", "Arrays"],
@@ -244,6 +264,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 107,
+    platformProblemId: "560",
+    url: "https://leetcode.com/problems/subarray-sum-equals-k/",
     title: "Subarray Sum Equals K",
     difficulty: "Medium",
     topics: ["Prefix Sum", "Hashing", "Arrays"],
@@ -266,6 +288,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 108,
+    platformProblemId: "56",
+    url: "https://leetcode.com/problems/merge-intervals/",
     title: "Merge Intervals",
     difficulty: "Medium",
     topics: ["Intervals", "Sorting", "Arrays"],
@@ -291,6 +315,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 109,
+    platformProblemId: "79",
+    url: "https://leetcode.com/problems/word-search/",
     title: "Word Search Grid",
     difficulty: "Medium",
     topics: ["Backtracking", "Matrix", "DFS"],
@@ -321,6 +347,8 @@ const LEETCODE_PROBLEMS: Problem[] = [
   },
   {
     id: 110,
+    platformProblemId: "42",
+    url: "https://leetcode.com/problems/trapping-rain-water/",
     title: "Trapping Rain Water",
     difficulty: "Hard",
     topics: ["Two Pointers", "Stack", "Monotonic Stack", "Arrays"],

@@ -8,7 +8,9 @@ export type Topic = string;
 
 export interface Problem {
   id: number;
+  platformProblemId?: string; // Stable platform ID (e.g. "1", "101", "1500B")
   title: string;
+  url?: string; // Real problem link
   difficulty: Difficulty;
   topics: Topic[];
   estimated: string;
@@ -19,6 +21,7 @@ export interface Problem {
   };
   takeaways: string[];
   platform: Platform;
+  selectionReason?: string; // Concise 1-sentence AI selection reason
 }
 
 export interface RecommendationRequest {
@@ -55,7 +58,9 @@ export type SessionQuestionStatus = "Not Started" | "In Progress" | "Completed" 
 
 export interface SessionQuestionItem {
   problemId: number;
+  platformProblemId?: string;
   problemTitle: string;
+  url?: string;
   platform: Platform;
   difficulty: Difficulty;
   topics: Topic[];
@@ -66,10 +71,22 @@ export interface SessionQuestionItem {
     space: string;
   };
   takeaways: string[];
+  selectionReason?: string;
   status: SessionQuestionStatus;
   startedAt?: string;
   completedAt?: string;
   skippedAt?: string;
+}
+
+export interface AiReviewResult {
+  overallFeedback: string;
+  correctnessAnalysis: string;
+  timeComplexity: string;
+  spaceComplexity: string;
+  optimizationSuggestions: string[];
+  edgeCases: string[];
+  learningTips: string[];
+  reviewedAt: string;
 }
 
 export interface DailyPracticeSession {

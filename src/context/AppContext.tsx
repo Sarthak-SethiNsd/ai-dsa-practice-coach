@@ -9,19 +9,24 @@ import {
   RecommendationPlatformConfig,
   RecommendationConfig,
   DailyPracticeSession,
-  SessionQuestionItem
+  SessionQuestionItem,
+  AiReviewResult
 } from "@/services/types";
+import { aiReviewService } from "@/services/ai/aiReviewService";
+import { AiReviewRequest } from "@/services/ai/aiTypes";
 import { recommendationStorage } from "@/services/recommendationStorage";
 import { dailySessionStorage } from "@/services/dailyRecommendationStorage";
 import { sessionArchiveStorage } from "@/services/sessionArchiveStorage";
 import { checkRecommendationSettingsCooldown } from "@/services/cooldownService";
 import { getTodayDateString } from "@/utils/dateUtils";
 
-export type { RecommendationPlatformConfig, RecommendationConfig, DailyPracticeSession, SessionQuestionItem };
+export type { RecommendationPlatformConfig, RecommendationConfig, DailyPracticeSession, SessionQuestionItem, AiReviewResult };
 
 export interface Problem {
   id: number;
+  platformProblemId?: string;
   title: string;
+  url?: string;
   difficulty: "Easy" | "Medium" | "Hard";
   topics: string[];
   estimated: string;
@@ -32,6 +37,7 @@ export interface Problem {
   };
   takeaways: string[];
   platform: Platform;
+  selectionReason?: string;
 }
 
 export interface HistoryItem {
@@ -83,6 +89,7 @@ interface AppContextType {
     skippedAt?: string;
   }>;
   notes: Record<string, string>;
+  aiReviewMap: Record<number, AiReviewResult>;
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
@@ -95,6 +102,7 @@ interface AppContextType {
   retryProblems: () => void;
   updateNote: (problemId: number, note: string) => void;
   deleteNote: (problemId: number) => void;
+  generateAiReview: (request: AiReviewRequest & { problemId: number }) => Promise<AiReviewResult>;
 }
 
 const AppContext = React.createContext<AppContextType | undefined>(undefined);
@@ -120,6 +128,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   }>>({});
 
   const [notes, setNotes] = React.useState<Record<string, string>>({});
+  const [aiReviewMap, setAiReviewMap] = React.useState<Record<number, AiReviewResult>>({});
 
   const mountedRef = React.useRef(false);
   React.useEffect(() => {
@@ -138,14 +147,17 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     if (!dailySession || !dailySession.questions) return [];
     return dailySession.questions.map(q => ({
       id: q.problemId,
+      platformProblemId: q.platformProblemId,
       title: q.problemTitle,
+      url: q.url,
       difficulty: q.difficulty,
       topics: q.topics,
       estimated: q.estimated,
       solutions: q.solutions,
       complexity: q.complexity,
       takeaways: q.takeaways,
-      platform: q.platform
+      platform: q.platform,
+      selectionReason: q.selectionReason
     }));
   }, [dailySession]);
 
@@ -173,7 +185,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
-        const newSession = await defaultEngine.generateDailySession(selectedTopics, recommendationConfig);
+        const newSession = await defaultEngine.generateDailySession(selectedTopics, recommendationConfig, selectedLanguage);
         await dailySessionStorage.saveSession(newSession);
 
         if (isMounted) {
@@ -194,7 +206,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isMounted = false;
     };
-  }, [selectedTopics, recommendationConfig, reloadTrigger]);
+  }, [selectedTopics, recommendationConfig, selectedLanguage, reloadTrigger]);
 
   // Synchronise stored state on mount
   React.useEffect(() => {
@@ -203,6 +215,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const savedHistory = localStorage.getItem("dsa_history");
     const savedProblemStatuses = localStorage.getItem("dsa_problem_status");
     const savedNotes = localStorage.getItem("dsa_notes");
+    const savedAiReviews = localStorage.getItem("dsa_ai_reviews");
 
     let activeTopics: string[] = [
       "Arrays",
@@ -258,12 +271,22 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
+    let activeAiReviews: Record<number, AiReviewResult> = {};
+    if (savedAiReviews) {
+      try {
+        activeAiReviews = JSON.parse(savedAiReviews);
+      } catch (e) {
+        console.error("Failed to parse saved AI reviews", e);
+      }
+    }
+
     const timer = setTimeout(() => {
       if (savedLanguage) setSelectedLanguage(savedLanguage);
       setSelectedTopics(activeTopics);
       if (activeHistory.length > 0) setHistory(activeHistory);
       setProblemStatuses(activeStatuses);
       setNotes(activeNotes);
+      setAiReviewMap(activeAiReviews);
     }, 0);
 
     return () => clearTimeout(timer);
@@ -276,6 +299,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   React.useEffect(() => {
     localStorage.setItem("dsa_notes", JSON.stringify(notes));
   }, [notes]);
+
+  React.useEffect(() => {
+    localStorage.setItem("dsa_ai_reviews", JSON.stringify(aiReviewMap));
+  }, [aiReviewMap]);
 
   React.useEffect(() => {
     localStorage.setItem("dsa_history", JSON.stringify(history));
@@ -321,6 +348,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setRecommendationConfig(DEFAULT_RECOMMENDATION_CONFIG);
     setProblemStatuses({});
     setNotes({});
+    setAiReviewMap({});
     setDailySession(null);
 
     localStorage.removeItem("dsa_language");
@@ -329,6 +357,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem("dsa_review_problem_id");
     localStorage.removeItem("dsa_problem_status");
     localStorage.removeItem("dsa_notes");
+    localStorage.removeItem("dsa_ai_reviews");
     recommendationStorage.clearConfig();
     dailySessionStorage.clearSession();
     sessionArchiveStorage.clear();
@@ -538,6 +567,26 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+  const generateAiReview = async (request: AiReviewRequest & { problemId: number }): Promise<AiReviewResult> => {
+    const response = await aiReviewService.generateReview(request);
+    const resultWithTime: AiReviewResult = {
+      ...response,
+      reviewedAt: new Date().toISOString()
+    };
+
+    setAiReviewMap(prev => ({
+      ...prev,
+      [request.problemId]: resultWithTime
+    }));
+
+    setToast({
+      show: true,
+      message: `AI Review generated for ${request.problemTitle}!`
+    });
+
+    return resultWithTime;
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -553,6 +602,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         error,
         problemStatuses,
         notes,
+        aiReviewMap,
         saveProfile,
         selectReviewProblem,
         clearToast,
@@ -564,7 +614,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         skipProblem,
         retryProblems,
         updateNote,
-        deleteNote
+        deleteNote,
+        generateAiReview
       }}
     >
       {children}
