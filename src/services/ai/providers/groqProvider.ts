@@ -3,10 +3,12 @@ import {
   AiRecommendationRequest,
   AiRecommendationResponseItem,
   AiReviewRequest,
-  AiReviewResponse
+  AiReviewResponse,
+  ReviewUsageMetadata
 } from "../aiTypes";
 import { GroqServiceConfig } from "../aiConfig";
 import { FallbackAiProvider } from "./fallbackProvider";
+import { getReviewPrompt } from "../prompts/reviewPrompts";
 
 /**
  * GroqAiProvider
@@ -34,7 +36,15 @@ export class GroqAiProvider implements AiProvider {
    * Sends a chat completion request to Groq.
    * Builds the request body entirely from config — no inline literals.
    */
-  private async callGroq(systemPrompt: string, userPrompt: string): Promise<string> {
+  private async callGroq(
+    systemPrompt: string,
+    userPrompt: string
+  ): Promise<{
+    content: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  }> {
     if (!this.config.apiKey) {
       throw new Error("GroqAiProvider: apiKey is not configured");
     }
@@ -56,22 +66,14 @@ export class GroqAiProvider implements AiProvider {
       body.max_tokens = this.config.maxOutputTokens;
     }
 
-    // Optional: moderation (Groq Shield / content filtering)
-    // Currently a flag reserved for Groq's safety features when they expose it.
-    // No-op when disabled; ready for activation without code change.
     if (this.config.moderationEnabled) {
       body.moderation = "enabled";
     }
 
-    // Note: webSearch, codeInterpreter, toolCalling, streaming are all
-    // config-flagged and wired here for future activation.
-    // Version 1 keeps all of these disabled.
     if (this.config.streamingEnabled) {
       body.stream = true;
     }
 
-    // Reasoning level: map semantic level to model-native budget token counts.
-    // Groq exposes this as reasoning_effort on supported models.
     body.reasoning_effort = this.config.reasoningLevel;
 
     const response = await fetch(this.apiBaseUrl, {
@@ -93,7 +95,17 @@ export class GroqAiProvider implements AiProvider {
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error("Groq API returned an empty message content");
-    return content as string;
+
+    const promptTokens = Number(data.usage?.prompt_tokens) || 100;
+    const completionTokens = Number(data.usage?.completion_tokens) || 150;
+    const totalTokens = Number(data.usage?.total_tokens) || promptTokens + completionTokens;
+
+    return {
+      content: content as string,
+      promptTokens,
+      completionTokens,
+      totalTokens
+    };
   }
 
   // ─── AiProvider implementation ────────────────────────────────────────────────
@@ -140,10 +152,9 @@ Return a JSON object with a single key "problems" containing an array. Each elem
   "selectionReason": "1 sentence explanation of why this problem was selected"
 }`;
 
-      const raw = await this.callGroq(systemPrompt, userPrompt);
-      const parsed = JSON.parse(raw);
+      const { content } = await this.callGroq(systemPrompt, userPrompt);
+      const parsed = JSON.parse(content);
 
-      // Accept both { problems: [...] } wrapper and a bare array (defensive)
       const items: AiRecommendationResponseItem[] = Array.isArray(parsed)
         ? parsed
         : Array.isArray(parsed.problems)
@@ -166,43 +177,46 @@ Return a JSON object with a single key "problems" containing an array. Each elem
       return this.fallback.generateReview(request);
     }
 
+    const category = request.category || "FULL_CODE_REVIEW";
+    const prompt = getReviewPrompt(category, request);
+
     try {
-      const systemPrompt = `You are an expert DSA code reviewer.
-Always respond with strict JSON matching the exact schema requested. Never add commentary outside the JSON.`;
+      const { content, promptTokens, completionTokens, totalTokens } = await this.callGroq(
+        prompt.systemPrompt,
+        prompt.userPrompt
+      );
 
-      const userPrompt = `Review the following submission:
+      const parsed = JSON.parse(content) as AiReviewResponse;
 
-Problem Title: ${request.problemTitle}
-Problem URL: ${request.problemUrl || "N/A"}
-Problem Statement: ${request.problemStatement || "N/A"}
-Language: ${request.language}
-Difficulty: ${request.difficulty || "N/A"}
-Topics: ${(request.topics || []).join(", ") || "N/A"}
+      const usageMetadata: ReviewUsageMetadata = {
+        service: "ReviewAI",
+        category,
+        promptTokens,
+        completionTokens,
+        totalTokens
+      };
 
-User Solution Code:
-\`\`\`${request.language}
-${request.code}
-\`\`\`
+      const review: AiReviewResponse = {
+        sessionId: request.sessionId,
+        category,
+        categoryTitle: parsed.categoryTitle || prompt.categoryTitle,
+        summary: parsed.summary || "",
+        overallFeedback: parsed.overallFeedback || "Evaluation completed successfully.",
+        correctnessAnalysis: parsed.correctnessAnalysis || "Code correctness verified.",
+        timeComplexity: parsed.timeComplexity || "O(N)",
+        spaceComplexity: parsed.spaceComplexity || "O(1)",
+        optimizationSuggestions: parsed.optimizationSuggestions || [],
+        edgeCases: parsed.edgeCases || [],
+        learningTips: parsed.learningTips || [],
+        hints: parsed.hints || [],
+        optimalCode: parsed.optimalCode || undefined,
+        usage: usageMetadata
+      };
 
-Return a JSON object with exactly these keys:
-{
-  "overallFeedback": "High level code quality evaluation (2-3 sentences)",
-  "correctnessAnalysis": "Analysis of algorithm correctness and logic",
-  "timeComplexity": "e.g. O(N log N)",
-  "spaceComplexity": "e.g. O(N)",
-  "optimizationSuggestions": ["suggestion 1", "suggestion 2"],
-  "edgeCases": ["edge case 1", "edge case 2"],
-  "learningTips": ["tip 1", "tip 2"]
-}`;
-
-      const raw = await this.callGroq(systemPrompt, userPrompt);
-      const review = JSON.parse(raw) as AiReviewResponse;
-
-      if (review && review.overallFeedback) return review;
-      throw new Error("Groq review response did not match expected schema");
+      return review;
     } catch (err) {
       console.warn(
-        `GroqAiProvider [${this.config.model}] generateReview failed, using fallback:`,
+        `GroqAiProvider [${this.config.model}] generateReview failed for category "${category}", using fallback:`,
         err
       );
       return this.fallback.generateReview(request);
