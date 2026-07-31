@@ -185,7 +185,26 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
-        const newSession = await defaultEngine.generateDailySession(selectedTopics, recommendationConfig, selectedLanguage);
+        const userProfile = {
+          selectedLanguage,
+          selectedTopics,
+          totalSolved: history.filter(h => h.status === "Solved").length
+        };
+        const recentHistoryPayload = history.slice(0, 5).map(h => ({
+          problemId: h.problemId,
+          problemTitle: h.problemTitle,
+          difficulty: h.difficulty,
+          status: h.status,
+          topics: h.topics
+        }));
+
+        const newSession = await defaultEngine.generateDailySession(
+          selectedTopics,
+          recommendationConfig,
+          selectedLanguage,
+          userProfile,
+          recentHistoryPayload
+        );
         await dailySessionStorage.saveSession(newSession);
 
         if (isMounted) {
@@ -206,7 +225,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isMounted = false;
     };
-  }, [selectedTopics, recommendationConfig, selectedLanguage, reloadTrigger]);
+  }, [selectedTopics, recommendationConfig, selectedLanguage, history, reloadTrigger]);
 
   // Synchronise stored state on mount
   React.useEffect(() => {

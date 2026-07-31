@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { getRecommendationProvider } from "@/services/ai/aiFactory";
 import { AiRecommendationRequest } from "@/services/ai/aiTypes";
 
+interface RecommendationMetaExt {
+  recommendationReason?: string;
+  strengthsMatched?: string[];
+  suggestedLearningOrder?: string[];
+}
+
 export async function POST(req: Request) {
   try {
     const body: AiRecommendationRequest = await req.json();
@@ -15,8 +21,22 @@ export async function POST(req: Request) {
 
     const provider = getRecommendationProvider();
     const recommendations = await provider.rankRecommendations(body);
+    const meta = recommendations as unknown as RecommendationMetaExt;
 
-    return NextResponse.json({ recommendations });
+    const recommendationReason =
+      meta.recommendationReason ||
+      `Curated practice problem set matching ${body.selectedTopics?.join(", ") || "selected topics"}.`;
+    const strengthsMatched =
+      meta.strengthsMatched || body.selectedTopics || [];
+    const suggestedLearningOrder =
+      meta.suggestedLearningOrder || [];
+
+    return NextResponse.json({
+      recommendations,
+      recommendationReason,
+      strengthsMatched,
+      suggestedLearningOrder
+    });
   } catch (error) {
     console.error("API /api/recommendations error:", error);
     return NextResponse.json(

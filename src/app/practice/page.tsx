@@ -113,6 +113,51 @@ export default function Practice() {
         </Card>
       ) : (
         <>
+          {/* AI Recommendation Insights Card */}
+          {dailySession?.metadata?.recommendationReason && (
+            <Card className="border-sky-100 bg-sky-50/40 shadow-xs">
+              <CardContent className="p-4 sm:p-5 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-xs">
+                      AI
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-800">AI Recommendation Strategy</h3>
+                  </div>
+                  {dailySession.metadata.strengthsMatched && dailySession.metadata.strengthsMatched.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <span className="text-[11px] font-semibold text-slate-500 mr-1">Matched Skills:</span>
+                      {dailySession.metadata.strengthsMatched.map(s => (
+                        <Badge key={s} variant="primary" className="text-[10px]">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                  {dailySession.metadata.recommendationReason}
+                </p>
+
+                {dailySession.metadata.suggestedLearningOrder && dailySession.metadata.suggestedLearningOrder.length > 0 && (
+                  <div className="pt-2 border-t border-sky-100/80 space-y-1.5">
+                    <span className="text-[10px] font-bold text-sky-700 uppercase tracking-wider block">
+                      Suggested Learning Order
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {dailySession.metadata.suggestedLearningOrder.map((step, idx) => (
+                        <div key={idx} className="text-xs text-slate-600 bg-white/80 border border-sky-100 px-2.5 py-1 rounded-lg">
+                          {step}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Search & Filter Header Bar */}
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-between p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
             <div className="relative w-full sm:max-w-xs">

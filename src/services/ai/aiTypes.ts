@@ -29,11 +29,28 @@ export interface ReviewUsageMetadata {
   totalTokens: number;
 }
 
+export interface RecentHistoryItem {
+  problemId: number;
+  problemTitle: string;
+  difficulty: string;
+  status: string;
+  topics?: string[];
+}
+
+export interface UserProfileMetadata {
+  selectedLanguage: string;
+  selectedTopics: string[];
+  difficultyPreference?: string;
+  totalSolved?: number;
+}
+
 export interface AiRecommendationRequest {
   candidateProblems: Problem[];
   selectedLanguage: string;
   selectedTopics: string[];
   platformConfig: RecommendationPlatformConfig;
+  userProfile?: UserProfileMetadata;
+  recentHistory?: RecentHistoryItem[];
 }
 
 export interface AiRecommendationResponseItem {
@@ -45,6 +62,13 @@ export interface AiRecommendationResponseItem {
   difficulty: Difficulty;
   topics: string[];
   selectionReason: string; // 1-sentence explanation of why this problem was selected
+}
+
+export interface AiRecommendationResult {
+  rankedProblems: AiRecommendationResponseItem[];
+  recommendationReason: string;
+  strengthsMatched: string[];
+  suggestedLearningOrder: string[];
 }
 
 export interface AiReviewRequest {

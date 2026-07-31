@@ -1,6 +1,7 @@
 import { QuestionProvider, RecommendationConfig, Problem, DailyPracticeSession, SessionQuestionItem } from './types';
 import { getTodayDateString } from '@/utils/dateUtils';
 import { aiRecommendationService } from './ai/aiRecommendationService';
+import { UserProfileMetadata, RecentHistoryItem } from './ai/aiTypes';
 
 /**
  * RecommendationEngine operates against abstract QuestionProvider instances to generate
@@ -26,12 +27,14 @@ export class RecommendationEngine {
 
   /**
    * Generates a new DailyPracticeSession based on selected topics, programming language,
-   * and recommendation configuration.
+   * recommendation configuration, user profile, and recent practice history.
    */
   async generateDailySession(
     selectedTopics: string[],
     config: RecommendationConfig,
-    selectedLanguage: string = "JavaScript"
+    selectedLanguage: string = "JavaScript",
+    userProfile?: UserProfileMetadata,
+    recentHistory?: RecentHistoryItem[]
   ): Promise<DailyPracticeSession> {
     const todayStr = getTodayDateString();
     const nowIso = new Date().toISOString();
@@ -49,12 +52,18 @@ export class RecommendationEngine {
           completedCount: 0,
           skippedCount: 0,
           inProgressCount: 0,
-          topicsCovered: []
+          topicsCovered: [],
+          recommendationReason: "No topics selected in your profile.",
+          strengthsMatched: [],
+          suggestedLearningOrder: []
         }
       };
     }
 
     const sessionQuestions: SessionQuestionItem[] = [];
+    let combinedReason = "";
+    let combinedStrengths: string[] = [];
+    let combinedLearningOrder: string[] = [];
 
     for (const pConfig of config.platformConfigs) {
       const provider = this.providers.get(pConfig.platform);
@@ -70,15 +79,29 @@ export class RecommendationEngine {
         });
 
         // 2. Rank and filter candidate problems using AI Recommendation Service
-        const rankedItems = await aiRecommendationService.rankCandidateProblems(
+        const rankingResult = await aiRecommendationService.rankCandidateProblems(
           candidateProblems,
           selectedLanguage,
           selectedTopics,
-          pConfig
+          pConfig,
+          userProfile,
+          recentHistory
         );
 
+        if (rankingResult.recommendationReason) {
+          combinedReason = rankingResult.recommendationReason;
+        }
+
+        if (rankingResult.strengthsMatched && rankingResult.strengthsMatched.length > 0) {
+          combinedStrengths = Array.from(new Set([...combinedStrengths, ...rankingResult.strengthsMatched]));
+        }
+
+        if (rankingResult.suggestedLearningOrder && rankingResult.suggestedLearningOrder.length > 0) {
+          combinedLearningOrder = [...combinedLearningOrder, ...rankingResult.suggestedLearningOrder];
+        }
+
         // 3. Map ranked items back into SessionQuestionItem structure
-        rankedItems.forEach(item => {
+        rankingResult.rankedProblems.forEach(item => {
           const match = candidateProblems.find(p => p.id === item.id || p.platformProblemId === item.platformProblemId);
           sessionQuestions.push({
             problemId: item.id,
@@ -116,7 +139,10 @@ export class RecommendationEngine {
         completedCount: 0,
         skippedCount: 0,
         inProgressCount: 0,
-        topicsCovered: Array.from(topicsSet)
+        topicsCovered: Array.from(topicsSet),
+        recommendationReason: combinedReason || `Personalized selection matching ${selectedTopics.join(", ")} in ${selectedLanguage}.`,
+        strengthsMatched: combinedStrengths.length > 0 ? combinedStrengths : selectedTopics,
+        suggestedLearningOrder: combinedLearningOrder
       }
     };
   }

@@ -9,6 +9,7 @@ import {
 import { GroqServiceConfig } from "../aiConfig";
 import { FallbackAiProvider } from "./fallbackProvider";
 import { getReviewPrompt } from "../prompts/reviewPrompts";
+import { buildRecommendationPrompt } from "../prompts/recommendationPrompts";
 
 /**
  * GroqAiProvider
@@ -118,51 +119,51 @@ export class GroqAiProvider implements AiProvider {
     }
 
     try {
-      const candidatesPayload = request.candidateProblems.map(p => ({
-        id: p.id,
-        platform: p.platform,
-        platformProblemId: p.platformProblemId || `${p.platform}-${p.id}`,
-        title: p.title,
-        url: p.url,
-        difficulty: p.difficulty,
-        topics: p.topics
-      }));
-
-      const systemPrompt = `You are a DSA Coach AI that selects practice problems for students.
-You ONLY select from the provided candidates list. You never invent new problems.
-Always respond with strict JSON — a single object with a "problems" array.`;
-
-      const userPrompt = `Select up to ${request.platformConfig.questionsPerDay} problems from the candidates below that best match:
-- Programming language: ${request.selectedLanguage}
-- Selected topics: ${request.selectedTopics.join(", ")}
-- Target difficulty: ${request.platformConfig.difficulty}
-
-Candidates (JSON):
-${JSON.stringify(candidatesPayload)}
-
-Return a JSON object with a single key "problems" containing an array. Each element must match:
-{
-  "id": number,
-  "platform": "leetcode" | "codeforces",
-  "platformProblemId": "string",
-  "title": "string",
-  "url": "string",
-  "difficulty": "Easy" | "Medium" | "Hard",
-  "topics": ["string"],
-  "selectionReason": "1 sentence explanation of why this problem was selected"
-}`;
-
-      const { content } = await this.callGroq(systemPrompt, userPrompt);
+      const prompt = buildRecommendationPrompt(request);
+      const { content } = await this.callGroq(prompt.systemPrompt, prompt.userPrompt);
       const parsed = JSON.parse(content);
 
-      const items: AiRecommendationResponseItem[] = Array.isArray(parsed)
+      const itemsRaw: AiRecommendationResponseItem[] = Array.isArray(parsed)
         ? parsed
         : Array.isArray(parsed.problems)
           ? parsed.problems
           : [];
 
-      if (items.length > 0) return items;
-      throw new Error("Groq returned an empty problems array for recommendations");
+      // Validate returned problem IDs strictly against candidates to ensure zero fabricated problems
+      const validCandidateIds = new Set(request.candidateProblems.map(p => p.id));
+      const validCandidatePlatformIds = new Set(
+        request.candidateProblems.map(p => p.platformProblemId).filter(Boolean)
+      );
+
+      const verifiedItems = itemsRaw.filter(item => {
+        const matchById = validCandidateIds.has(item.id);
+        const matchByPlatformId = item.platformProblemId
+          ? validCandidatePlatformIds.has(item.platformProblemId)
+          : false;
+        return matchById || matchByPlatformId;
+      });
+
+      const recommendationReason =
+        parsed.recommendationReason ||
+        `Curated ${verifiedItems.length} problems matching ${request.selectedTopics.join(", ")} for ${request.selectedLanguage}.`;
+      const strengthsMatched = Array.isArray(parsed.strengthsMatched) && parsed.strengthsMatched.length > 0
+        ? parsed.strengthsMatched
+        : request.selectedTopics;
+      const suggestedLearningOrder = Array.isArray(parsed.suggestedLearningOrder)
+        ? parsed.suggestedLearningOrder
+        : verifiedItems.map((p, idx) => `Step ${idx + 1}: Solve ${p.title} (${p.difficulty})`);
+
+      const finalItems = verifiedItems.length > 0
+        ? verifiedItems
+        : await this.fallback.rankRecommendations(request);
+
+      Object.assign(finalItems, {
+        recommendationReason,
+        strengthsMatched,
+        suggestedLearningOrder
+      });
+
+      return finalItems;
     } catch (err) {
       console.warn(
         `GroqAiProvider [${this.config.model}] rankRecommendations failed, using fallback:`,

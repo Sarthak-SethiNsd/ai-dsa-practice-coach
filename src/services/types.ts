@@ -102,6 +102,9 @@ export interface DailyPracticeSession {
     skippedCount: number;
     inProgressCount: number;
     topicsCovered: string[];
+    recommendationReason?: string;
+    strengthsMatched?: string[];
+    suggestedLearningOrder?: string[];
   };
 }
 

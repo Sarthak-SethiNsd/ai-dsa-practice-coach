@@ -20,7 +20,7 @@ export class FallbackAiProvider implements AiProvider {
     request: AiRecommendationRequest
   ): Promise<AiRecommendationResponseItem[]> {
     const limit = request.platformConfig.questionsPerDay;
-    return request.candidateProblems.slice(0, limit).map(p => ({
+    const items = request.candidateProblems.slice(0, limit).map(p => ({
       id: p.id,
       platform: p.platform,
       platformProblemId: p.platformProblemId || `${p.platform}-${p.id}`,
@@ -30,6 +30,14 @@ export class FallbackAiProvider implements AiProvider {
       topics: p.topics,
       selectionReason: `Selected as a core problem matching your selected topics (${request.selectedTopics.join(", ")}).`
     }));
+
+    Object.assign(items, {
+      recommendationReason: `Curated practice set matching ${request.selectedTopics.join(", ")} for ${request.selectedLanguage}.`,
+      strengthsMatched: request.selectedTopics,
+      suggestedLearningOrder: items.map((p, idx) => `Step ${idx + 1}: Solve ${p.title} (${p.difficulty})`)
+    });
+
+    return items;
   }
 
   async generateReview(request: AiReviewRequest): Promise<AiReviewResponse> {
