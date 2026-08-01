@@ -13,7 +13,8 @@ import {
   AiReviewResult
 } from "@/services/types";
 import { aiReviewService } from "@/services/ai/aiReviewService";
-import { AiReviewRequest } from "@/services/ai/aiTypes";
+import { reviewUsageService } from "@/services/ai/reviewUsageService";
+import { AiReviewRequest, ReviewQuotaStatusResponse } from "@/services/ai/aiTypes";
 import { recommendationStorage } from "@/services/recommendationStorage";
 import { dailySessionStorage } from "@/services/dailyRecommendationStorage";
 import { sessionArchiveStorage } from "@/services/sessionArchiveStorage";
@@ -90,6 +91,8 @@ interface AppContextType {
   }>;
   notes: Record<string, string>;
   aiReviewMap: Record<number, AiReviewResult>;
+  reviewQuotaStatus: ReviewQuotaStatusResponse | null;
+  refreshReviewQuota: () => void;
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
@@ -129,6 +132,22 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [notes, setNotes] = React.useState<Record<string, string>>({});
   const [aiReviewMap, setAiReviewMap] = React.useState<Record<number, AiReviewResult>>({});
+  const [reviewQuotaStatus, setReviewQuotaStatus] = React.useState<ReviewQuotaStatusResponse | null>(() => {
+    try {
+      return reviewUsageService.getQuotaStatus();
+    } catch {
+      return null;
+    }
+  });
+
+  const refreshReviewQuota = React.useCallback(() => {
+    try {
+      const status = reviewUsageService.getQuotaStatus();
+      setReviewQuotaStatus(status);
+    } catch (e) {
+      console.error("Failed to load review quota status", e);
+    }
+  }, []);
 
   const mountedRef = React.useRef(false);
   React.useEffect(() => {
@@ -603,6 +622,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       message: `AI Review generated for ${request.problemTitle}!`
     });
 
+    refreshReviewQuota();
+
     return resultWithTime;
   };
 
@@ -622,6 +643,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         problemStatuses,
         notes,
         aiReviewMap,
+        reviewQuotaStatus,
+        refreshReviewQuota,
         saveProfile,
         selectReviewProblem,
         clearToast,

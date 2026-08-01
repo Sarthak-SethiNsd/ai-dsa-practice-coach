@@ -29,6 +29,34 @@ export interface ReviewUsageMetadata {
   totalTokens: number;
 }
 
+export interface ReviewWeeklyUsage {
+  userId: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  totalReviewRequests: number;
+  weekStartTimestamp: string;
+}
+
+export interface ReviewQuotaStatusResponse {
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    totalRequests: number;
+  };
+  limits: {
+    weeklyTokenLimit: number;
+    weeklyRequestLimit: number | null;
+    remainingTokens: number;
+    remainingRequests: number | null;
+  };
+  period: {
+    weekStart: string;
+    weekEnd: string;
+  };
+}
+
 export interface RecentHistoryItem {
   problemId: number;
   problemTitle: string;

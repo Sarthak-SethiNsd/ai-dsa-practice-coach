@@ -107,8 +107,25 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 export default function ReviewPage() {
-  const { selectedReviewProblem, selectedLanguage } = useAppContext();
+  const { selectedReviewProblem, selectedLanguage, reviewQuotaStatus, refreshReviewQuota } = useAppContext();
   const problem = selectedReviewProblem;
+
+  // Quota calculation helpers
+  const isQuotaExhausted = React.useMemo(() => {
+    if (!reviewQuotaStatus) return false;
+    const tokensExhausted = reviewQuotaStatus.limits.remainingTokens <= 0;
+    const reqsExhausted =
+      reviewQuotaStatus.limits.remainingRequests !== null &&
+      reviewQuotaStatus.limits.remainingRequests <= 0;
+    return tokensExhausted || reqsExhausted;
+  }, [reviewQuotaStatus]);
+
+  const isQuotaLow = React.useMemo(() => {
+    if (!reviewQuotaStatus || isQuotaExhausted) return false;
+    const ratio =
+      reviewQuotaStatus.limits.remainingTokens / reviewQuotaStatus.limits.weeklyTokenLimit;
+    return ratio < 0.1;
+  }, [reviewQuotaStatus, isQuotaExhausted]);
 
   // Language state
   const [language, setLanguage] = React.useState<string>(selectedLanguage || "JavaScript");
@@ -201,7 +218,7 @@ export default function ReviewPage() {
 
   // Execute AI Review Request for a selected category
   const executeReviewCategory = async (category: ReviewCategory) => {
-    if (!validation.isValid) return;
+    if (!validation.isValid || isQuotaExhausted) return;
 
     setSelectedCategory(category);
     setIsLoading(true);
@@ -222,8 +239,10 @@ export default function ReviewPage() {
       });
 
       setReviewResult(response);
+      refreshReviewQuota();
     } catch (err) {
       console.error("AI Review execution failed:", err);
+      refreshReviewQuota();
       setError(
         err instanceof Error
           ? err.message
@@ -297,6 +316,99 @@ export default function ReviewPage() {
           </div>
         </div>
       </div>
+
+      {/* Weekly Quota Card */}
+      {reviewQuotaStatus && (
+        <Card className="border-slate-200 shadow-sm bg-white">
+          <CardContent className="p-4 sm:p-5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">Review AI Weekly Quota</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {isQuotaExhausted ? (
+                  <Badge variant="warning" className="bg-red-50 text-red-700 border-red-200 font-bold">
+                    Quota Exhausted
+                  </Badge>
+                ) : isQuotaLow ? (
+                  <Badge variant="warning" className="bg-amber-50 text-amber-700 border-amber-200 font-bold">
+                    Quota Low (&lt;10%)
+                  </Badge>
+                ) : (
+                  <Badge variant="success" className="text-xs font-semibold">
+                    Active Quota
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Quota Progress Bar */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
+                <span>Tokens Used</span>
+                <span>
+                  {reviewQuotaStatus.usage.totalTokens.toLocaleString()} / {reviewQuotaStatus.limits.weeklyTokenLimit.toLocaleString()} Tokens
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    isQuotaExhausted ? "bg-red-500" : isQuotaLow ? "bg-amber-500" : "bg-sky-500"
+                  }`}
+                  style={{
+                    width: `${Math.min(100, (reviewQuotaStatus.usage.totalTokens / reviewQuotaStatus.limits.weeklyTokenLimit) * 100)}%`
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Quota Details Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Remaining Tokens</span>
+                <span className="text-sm font-bold text-slate-800">{reviewQuotaStatus.limits.remainingTokens.toLocaleString()}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Requests Used</span>
+                <span className="text-sm font-bold text-slate-800">{reviewQuotaStatus.usage.totalRequests}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Weekly Limit</span>
+                <span className="text-sm font-bold text-slate-800">{reviewQuotaStatus.limits.weeklyTokenLimit.toLocaleString()}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Resets On</span>
+                <span className="text-xs font-semibold text-slate-700">
+                  {new Date(reviewQuotaStatus.period.weekEnd).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+            </div>
+
+            {/* Quota Exhausted Warning Banner */}
+            {isQuotaExhausted && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 font-medium flex items-center gap-2 mt-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>
+                  Weekly quota exceeded. Your <strong>{reviewQuotaStatus.limits.weeklyTokenLimit.toLocaleString()}</strong> Review AI token limit has been exhausted. All category reviews are disabled until <strong>{new Date(reviewQuotaStatus.period.weekEnd).toLocaleDateString()}</strong>.
+                </span>
+              </div>
+            )}
+
+            {/* Quota Low Warning Banner */}
+            {isQuotaLow && !isQuotaExhausted && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 font-medium flex items-center gap-2 mt-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Warning: Less than 10% of your weekly Review AI token quota remains (<strong>{reviewQuotaStatus.limits.remainingTokens.toLocaleString()}</strong> tokens left). Quota resets on {new Date(reviewQuotaStatus.period.weekEnd).toLocaleDateString()}.
+                </span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* SECTION 1: UPLOAD CODE */}
       <Card className="border-slate-200 shadow-sm">
@@ -396,7 +508,7 @@ export default function ReviewPage() {
             {REVIEW_CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const isSelected = selectedCategory === cat.key;
-              const disabled = !validation.isValid || isLoading;
+              const disabled = !validation.isValid || isLoading || isQuotaExhausted;
 
               return (
                 <button

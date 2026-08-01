@@ -54,6 +54,12 @@ export interface GroqServiceConfig {
 
   /** Whether to use streaming completions (future capability). */
   streamingEnabled: boolean;
+
+  /** Weekly token quota limit for Review AI. */
+  weeklyTokenLimit?: number;
+
+  /** Weekly request quota limit for Review AI (null = unlimited). */
+  weeklyRequestLimit?: number | null;
 }
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
@@ -61,11 +67,9 @@ export interface GroqServiceConfig {
 const VALID_REASONING_LEVELS: ReasoningLevel[] = ["low", "medium", "high"];
 
 function parseReasoningLevel(raw: string | undefined, fallback: ReasoningLevel): ReasoningLevel {
-  // Empty/unset → silently use default (not a misconfiguration)
   if (!raw || raw.trim() === "") return fallback;
   const normalised = raw.trim().toLowerCase() as ReasoningLevel;
   if (VALID_REASONING_LEVELS.includes(normalised)) return normalised;
-  // Non-empty but invalid → warn so the operator knows to fix it
   console.warn(
     `[aiConfig] Invalid REASONING_LEVEL "${raw}" — valid values: low | medium | high. Falling back to "${fallback}".`
   );
@@ -79,7 +83,6 @@ function parseFloat_clamped(
   max: number,
   label: string
 ): number {
-  // Empty/unset → silently use default
   if (raw === undefined || raw.trim() === "") return fallback;
   const n = parseFloat(raw);
   if (isNaN(n)) {
@@ -100,7 +103,6 @@ function parseInt_positive(
   fallback: number | null,
   label: string
 ): number | null {
-  // Empty/unset → silently use default
   if (raw === undefined || raw.trim() === "") return fallback;
   const n = parseInt(raw, 10);
   if (isNaN(n) || n <= 0) {
@@ -111,23 +113,17 @@ function parseInt_positive(
 }
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {
-  // Empty/unset → silently use default
   if (raw === undefined || raw.trim() === "") return fallback;
   const normalised = raw.trim().toLowerCase();
   if (normalised === "true" || normalised === "false") {
     return normalised === "true";
   }
-  // Non-empty but not a valid boolean → warn
   console.warn(`[aiConfig] Invalid boolean "${raw}" — expected "true" or "false". Using default (${fallback}).`);
   return fallback;
 }
 
 // ─── Default values ────────────────────────────────────────────────────────────
 
-/**
- * Version 1 defaults for Recommendation AI.
- * Override any of these via environment variables (see .env.local).
- */
 const RECOMMENDATION_DEFAULTS = {
   model: "llama-3.3-70b-versatile",
   maxOutputTokens: null as number | null,
@@ -141,10 +137,6 @@ const RECOMMENDATION_DEFAULTS = {
   streamingEnabled: false
 } as const;
 
-/**
- * Version 1 defaults for AI Review.
- * Override any of these via environment variables (see .env.local).
- */
 const REVIEW_DEFAULTS = {
   model: "llama-3.3-70b-versatile",
   maxOutputTokens: null as number | null,
@@ -155,7 +147,9 @@ const REVIEW_DEFAULTS = {
   webSearchEnabled: false,
   codeInterpreterEnabled: false,
   toolCallingEnabled: false,
-  streamingEnabled: false
+  streamingEnabled: false,
+  weeklyTokenLimit: 50000,
+  weeklyRequestLimit: null as number | null
 } as const;
 
 // ─── Loaders ───────────────────────────────────────────────────────────────────
@@ -163,10 +157,6 @@ const REVIEW_DEFAULTS = {
 const env = () =>
   typeof process !== "undefined" && process.env ? process.env : ({} as NodeJS.ProcessEnv);
 
-/**
- * Loads and validates the configuration for the Recommendation AI service.
- * All values come from environment variables; no values are assumed by the caller.
- */
 export function loadRecommendationConfig(): GroqServiceConfig {
   const e = env();
   return {
@@ -217,12 +207,13 @@ export function loadRecommendationConfig(): GroqServiceConfig {
   };
 }
 
-/**
- * Loads and validates the configuration for the AI Review service.
- * Completely independent from the Recommendation config.
- */
 export function loadReviewConfig(): GroqServiceConfig {
   const e = env();
+  const rawTokenLimit =
+    e.GROQ_REVIEW_WEEKLY_TOKEN_LIMIT || e.NEXT_PUBLIC_REVIEW_WEEKLY_TOKEN_LIMIT;
+  const rawRequestLimit =
+    e.GROQ_REVIEW_WEEKLY_REQUEST_LIMIT || e.NEXT_PUBLIC_REVIEW_WEEKLY_REQUEST_LIMIT;
+
   return {
     apiKey: e.GROQ_REVIEW_API_KEY || e.GROQ_API_KEY || "",
     model:
@@ -267,6 +258,14 @@ export function loadReviewConfig(): GroqServiceConfig {
     streamingEnabled: parseBool(
       e.GROQ_REVIEW_STREAMING_ENABLED,
       REVIEW_DEFAULTS.streamingEnabled
+    ),
+    weeklyTokenLimit:
+      parseInt_positive(rawTokenLimit, REVIEW_DEFAULTS.weeklyTokenLimit, "GROQ_REVIEW_WEEKLY_TOKEN_LIMIT") ??
+      REVIEW_DEFAULTS.weeklyTokenLimit,
+    weeklyRequestLimit: parseInt_positive(
+      rawRequestLimit,
+      REVIEW_DEFAULTS.weeklyRequestLimit,
+      "GROQ_REVIEW_WEEKLY_REQUEST_LIMIT"
     )
   };
 }
