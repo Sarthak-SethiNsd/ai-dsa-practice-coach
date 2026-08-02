@@ -128,3 +128,48 @@ export interface AiReviewResponse {
   optimalCode?: string;
   usage?: ReviewUsageMetadata;
 }
+
+/**
+ * Full persisted record for a single Review AI interaction.
+ * Stored by ReviewHistoryStorageProvider; never re-generated from AI.
+ */
+export interface ReviewHistoryEntry {
+  /** Unique review ID, e.g. "rh_1722518400000_abc123" */
+  id: string;
+  /** ISO 8601 timestamp of when the review was saved */
+  timestamp: string;
+  /** The review category selected by the user */
+  category: ReviewCategory;
+  /** Programming language of the submitted code */
+  language: string;
+  /** Full source code that was reviewed */
+  code: string;
+  /** Complete AI response object */
+  response: AiReviewResponse;
+  /** Token usage metadata (may be undefined for fallback responses) */
+  usage: ReviewUsageMetadata | undefined;
+  /** Name of the AI provider that generated the response */
+  model: string;
+  /** Total wall-clock response time in milliseconds */
+  durationMs: number;
+  /** Optional problem context */
+  problemTitle?: string;
+  problemUrl?: string;
+}
+
+/**
+ * Lightweight projection used in list and card views.
+ * Omits `code` body and full `response` to keep list payloads small.
+ */
+export interface ReviewHistorySummary {
+  id: string;
+  timestamp: string;
+  category: ReviewCategory;
+  language: string;
+  /** First 120 characters of the submitted code */
+  codePreview: string;
+  totalTokens: number;
+  model: string;
+  durationMs: number;
+  problemTitle?: string;
+}

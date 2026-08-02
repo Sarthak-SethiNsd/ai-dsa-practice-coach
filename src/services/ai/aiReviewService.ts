@@ -1,5 +1,15 @@
-import { AiReviewRequest, AiReviewResponse, ReviewSession } from "./aiTypes";
+import { AiReviewRequest, AiReviewResponse, ReviewHistoryEntry, ReviewSession } from "./aiTypes";
 import { FallbackAiProvider } from "./providers/fallbackProvider";
+import { reviewHistoryStorage } from "@/services/reviewHistoryStorage";
+
+// ─── ID generator ─────────────────────────────────────────────────────────────
+
+function generateHistoryId(): string {
+  const rand = Math.random().toString(36).substring(2, 9);
+  return `rh_${Date.now()}_${rand}`;
+}
+
+// ─── Service ──────────────────────────────────────────────────────────────────
 
 export class AiReviewService {
   private fallback = new FallbackAiProvider();
@@ -65,6 +75,10 @@ export class AiReviewService {
 
   /**
    * Evaluates solution code for a given category.
+   *
+   * After every successful response (API or fallback), the result is
+   * automatically persisted to reviewHistoryStorage. The save is fire-and-
+   * forget and never blocks or throws for the caller.
    */
   async generateReview(request: AiReviewRequest): Promise<AiReviewResponse> {
     const validation = this.validateSourceCode(request.code, request.language);
@@ -78,26 +92,62 @@ export class AiReviewService {
       sessionId: request.sessionId || `rev_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
     };
 
+    const startTime = Date.now();
+    let response: AiReviewResponse;
+    let modelName = "ReviewAI";
+
     try {
-      const response = await fetch("/api/review", {
+      const apiResponse = await fetch("/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(enrichedRequest)
       });
 
-      if (!response.ok) {
-        throw new Error(`API error ${response.status}`);
+      if (!apiResponse.ok) {
+        throw new Error(`API error ${apiResponse.status}`);
       }
 
-      const data = await response.json();
+      const data = await apiResponse.json();
       if (data && data.review && (data.review.overallFeedback || data.review.summary)) {
-        return data.review;
+        response = data.review;
+        // Read provider name from response header if available
+        modelName = apiResponse.headers.get("X-AI-Service") ?? "ReviewAI";
+      } else {
+        throw new Error("Invalid review payload from API");
       }
-      throw new Error("Invalid review payload from API");
     } catch (err) {
       console.warn("AiReviewService client call failed, using fallback reviewer:", err);
-      return this.fallback.generateReview(enrichedRequest);
+      response = await this.fallback.generateReview(enrichedRequest);
+      modelName = "FallbackProvider";
     }
+
+    const durationMs = Date.now() - startTime;
+
+    // ── Auto-save to history (fire-and-forget) ────────────────────────────
+    try {
+      const entry: ReviewHistoryEntry = {
+        id: generateHistoryId(),
+        timestamp: new Date().toISOString(),
+        category: request.category ?? response.category ?? "FULL_CODE_REVIEW",
+        language: request.language,
+        code: request.code,
+        response,
+        usage: response.usage,
+        model: modelName,
+        durationMs,
+        problemTitle: request.problemTitle,
+        problemUrl: request.problemUrl,
+      };
+      // Intentionally not awaited — storage failure must never affect the caller
+      reviewHistoryStorage.saveReview(entry).catch(e =>
+        console.error("[AiReviewService] Failed to save review history entry:", e)
+      );
+    } catch (saveErr) {
+      // Storage errors are silenced — never propagate to caller
+      console.error("[AiReviewService] Error building history entry:", saveErr);
+    }
+
+    return response;
   }
 }
 
