@@ -4,6 +4,7 @@ import * as React from "react";
 import { ReviewHistoryEntry, ReviewCategory } from "@/services/ai/aiTypes";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ExportMenu } from "@/components/reviewHistory/ExportMenu";
 import {
   X,
   Clock,
@@ -53,6 +54,8 @@ interface ReviewHistoryDetailModalProps {
   /** Set to true while the entry is being fetched */
   loading?: boolean;
   onClose: () => void;
+  /** Called with an error message if an export operation fails */
+  onError?: (message: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -61,6 +64,7 @@ export function ReviewHistoryDetailModal({
   entry,
   loading = false,
   onClose,
+  onError,
 }: ReviewHistoryDetailModalProps) {
   const [copiedCode, setCopiedCode] = React.useState(false);
   const [copiedOptimal, setCopiedOptimal] = React.useState(false);
@@ -113,15 +117,25 @@ export function ReviewHistoryDetailModal({
             </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="shrink-0 p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Export menu — only when a full entry is loaded */}
+            {entry && !loading && (
+              <ExportMenu
+                entry={entry}
+                onError={msg => onError?.(msg)}
+              />
+            )}
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
 
         {/* ── Scrollable body ── */}

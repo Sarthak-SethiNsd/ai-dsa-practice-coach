@@ -129,7 +129,7 @@ type ActiveTab = "practice" | "reviews";
 
 export default function History() {
   const router = useRouter();
-  const { selectReviewProblem } = useAppContext();
+  const { selectReviewProblem, showToast } = useAppContext();
 
   // ── Tab state ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = React.useState<ActiveTab>("practice");
@@ -412,6 +412,7 @@ export default function History() {
           entry={modalEntry}
           loading={modalLoading}
           onClose={handleCloseModal}
+          onError={(msg) => showToast(msg)}
         />
       )}
     </div>

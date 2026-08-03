@@ -93,6 +93,7 @@ interface AppContextType {
   aiReviewMap: Record<number, AiReviewResult>;
   reviewQuotaStatus: ReviewQuotaStatusResponse | null;
   refreshReviewQuota: () => void;
+  showToast: (message: string) => void;
   saveProfile: (language: string, topics: string[]) => void;
   selectReviewProblem: (problemId: number) => void;
   clearToast: () => void;
@@ -588,6 +589,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     setToast(prev => ({ ...prev, show: false }));
   };
 
+  const showToast = (message: string) => {
+    setToast({ show: true, message });
+  };
+
   const updateNote = (problemId: number, note: string) => {
     setNotes(prev => {
       const newNotes = { ...prev };
@@ -645,6 +650,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         aiReviewMap,
         reviewQuotaStatus,
         refreshReviewQuota,
+        showToast,
         saveProfile,
         selectReviewProblem,
         clearToast,

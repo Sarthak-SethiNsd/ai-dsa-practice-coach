@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAppContext } from "@/context/AppContext";
 import { aiReviewService } from "@/services/ai/aiReviewService";
-import { ReviewCategory, ReviewSession, AiReviewResponse } from "@/services/ai/aiTypes";
+import { ReviewCategory, ReviewSession, AiReviewResponse, ReviewHistoryEntry } from "@/services/ai/aiTypes";
+import { ExportMenu } from "@/components/reviewHistory/ExportMenu";
 import {
   Code2,
   Upload,
@@ -107,7 +108,7 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 export default function ReviewPage() {
-  const { selectedReviewProblem, selectedLanguage, reviewQuotaStatus, refreshReviewQuota } = useAppContext();
+  const { selectedReviewProblem, selectedLanguage, reviewQuotaStatus, refreshReviewQuota, showToast } = useAppContext();
   const problem = selectedReviewProblem;
 
   // Quota calculation helpers
@@ -162,6 +163,23 @@ export default function ReviewPage() {
     return aiReviewService.validateSourceCode(code, language);
   }, [code, language]);
 
+  // Transient ReviewHistoryEntry for export — never saved, only used by ExportMenu
+  const liveExportEntry = React.useMemo((): ReviewHistoryEntry | null => {
+    if (!reviewResult || !selectedCategory) return null;
+    return {
+      id: session?.sessionId ?? "live",
+      timestamp: new Date().toISOString(),
+      category: selectedCategory ?? (reviewResult.category ?? "FULL_CODE_REVIEW"),
+      language,
+      code,
+      response: reviewResult,
+      usage: reviewResult.usage,
+      model: reviewResult.usage?.service ?? "ReviewAI",
+      durationMs: 0,
+      problemTitle: problem?.title,
+      problemUrl: problem?.url,
+    };
+  }, [reviewResult, selectedCategory, session, language, code, problem]);
   // Handle Code change and update session model
   const handleCodeChange = (newCode: string) => {
     setCustomCode(newCode);
@@ -639,9 +657,18 @@ export default function ReviewPage() {
                     {reviewResult.categoryTitle || selectedCategory}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 font-medium">
-                  Stateless Request • {reviewResult.usage?.totalTokens || 0} tokens
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Stateless Request • {reviewResult.usage?.totalTokens || 0} tokens
+                  </span>
+                  {/* Export for live result */}
+                  {liveExportEntry && (
+                    <ExportMenu
+                      entry={liveExportEntry}
+                      onError={(msg) => showToast(msg)}
+                    />
+                  )}
+                </div>
               </div>
 
               {/* Summary / High level overview if available */}
