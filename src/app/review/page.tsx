@@ -9,6 +9,10 @@ import { useAppContext } from "@/context/AppContext";
 import { aiReviewService } from "@/services/ai/aiReviewService";
 import { ReviewCategory, ReviewSession, AiReviewResponse, ReviewHistoryEntry } from "@/services/ai/aiTypes";
 import { ExportMenu } from "@/components/reviewHistory/ExportMenu";
+import { usePromptTemplates } from "@/hooks/usePromptTemplates";
+import { TemplateSelector } from "@/components/promptTemplates/TemplateSelector";
+import { PromptTemplateModal } from "@/components/promptTemplates/PromptTemplateModal";
+import { PromptTemplate } from "@/services/promptTemplateTypes";
 import {
   Code2,
   Upload,
@@ -27,7 +31,9 @@ import {
   Check,
   Loader2,
   X,
-  FileText
+  FileText,
+  MessageSquareText,
+  Settings2
 } from "lucide-react";
 
 interface CategoryMeta {
@@ -158,6 +164,35 @@ export default function ReviewPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [copiedCode, setCopiedCode] = React.useState<boolean>(false);
 
+  // Prompt Templates Hook & State
+  const { templates, defaultTemplate } = usePromptTemplates();
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string | null>(null);
+  const [customInstruction, setCustomInstruction] = React.useState<string>("");
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = React.useState<boolean>(false);
+
+  // Auto-select default template on initial load once templates are available
+  const hasAutoSelectedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (defaultTemplate && !hasAutoSelectedRef.current) {
+      hasAutoSelectedRef.current = true;
+      queueMicrotask(() => {
+        setSelectedTemplateId(defaultTemplate.id);
+        setCustomInstruction(defaultTemplate.prompt);
+      });
+    }
+  }, [defaultTemplate]);
+
+  // Handle template selection
+  const handleSelectTemplate = (template: PromptTemplate | null) => {
+    if (template) {
+      setSelectedTemplateId(template.id);
+      setCustomInstruction(template.prompt);
+    } else {
+      setSelectedTemplateId(null);
+      setCustomInstruction("");
+    }
+  };
+
   // Real-time Code Validation check
   const validation = React.useMemo(() => {
     return aiReviewService.validateSourceCode(code, language);
@@ -253,7 +288,8 @@ export default function ReviewPage() {
         problemTitle: problem?.title || "Custom Code Review",
         problemUrl: problem?.url,
         difficulty: problem?.difficulty,
-        topics: problem?.topics
+        topics: problem?.topics,
+        config: customInstruction.trim() ? { customInstruction: customInstruction.trim() } : undefined
       });
 
       setReviewResult(response);
@@ -502,6 +538,79 @@ export default function ReviewPage() {
               <span>{validation.error}</span>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* SECTION 1.5: PROMPT TEMPLATE & CUSTOM INSTRUCTION */}
+      <Card className="border-slate-200 shadow-sm bg-white">
+        <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
+              <MessageSquareText className="w-4 h-4" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Prompt Template &amp; Custom Instructions</CardTitle>
+              <p className="text-xs text-slate-400">
+                Choose a template or write custom instructions to steer the AI reviewer&apos;s perspective.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsTemplateModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors shadow-sm cursor-pointer"
+          >
+            <Settings2 className="w-3.5 h-3.5 text-slate-500" />
+            <span>Manage Templates</span>
+          </button>
+        </CardHeader>
+
+        <CardContent className="space-y-3 pt-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Select Template:
+              </label>
+              <TemplateSelector
+                templates={templates}
+                selectedTemplateId={selectedTemplateId}
+                onSelectTemplate={handleSelectTemplate}
+                onOpenManagement={() => setIsTemplateModalOpen(true)}
+                disabled={isLoading}
+              />
+            </div>
+
+            {selectedTemplateId && (
+              <span className="text-[11px] text-slate-400 font-medium italic">
+                * You can freely edit the prompt text below after selecting a template.
+              </span>
+            )}
+          </div>
+
+          <div className="relative">
+            <textarea
+              value={customInstruction}
+              onChange={(e) => {
+                setCustomInstruction(e.target.value);
+              }}
+              placeholder="Add specific instructions for the AI reviewer (e.g., 'Focus heavily on reducing memory allocations' or 'Explain like I am a beginner')..."
+              rows={3}
+              className="w-full bg-slate-50 text-slate-800 border border-slate-200 font-mono text-xs p-3.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 shadow-inner resize-y leading-relaxed"
+            />
+            {customInstruction.trim().length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomInstruction("");
+                  setSelectedTemplateId(null);
+                }}
+                className="absolute top-2.5 right-3 text-[11px] text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -841,6 +950,14 @@ export default function ReviewPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Prompt Template Management Modal */}
+      <PromptTemplateModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        onSelectAndApply={(template) => handleSelectTemplate(template)}
+        onError={(msg) => showToast(msg)}
+      />
     </div>
   );
 }
