@@ -4,7 +4,7 @@ import * as React from "react";
 import { ReviewHistorySummary, ReviewCategory } from "@/services/ai/aiTypes";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Trash2, Clock, Code2, Zap, Timer } from "lucide-react";
+import { Trash2, Clock, Code2, Zap, Timer, CheckSquare2, Square } from "lucide-react";
 
 // ─── Category colour mapping ───────────────────────────────────────────────────
 
@@ -46,9 +46,22 @@ interface ReviewHistoryCardProps {
   summary: ReviewHistorySummary;
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
+  /** When true, the card is in compare-selection mode */
+  compareMode?: boolean;
+  /** Whether this card is currently selected for comparison */
+  isSelected?: boolean;
+  /** Called when the user toggles this card's selection */
+  onToggleSelect?: (id: string) => void;
 }
 
-export function ReviewHistoryCard({ summary, onOpen, onDelete }: ReviewHistoryCardProps) {
+export function ReviewHistoryCard({
+  summary,
+  onOpen,
+  onDelete,
+  compareMode = false,
+  isSelected = false,
+  onToggleSelect,
+}: ReviewHistoryCardProps) {
   const catMeta = CATEGORY_META[summary.category] ?? { label: summary.category, colour: "bg-slate-100 text-slate-600 border-slate-200" };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -56,16 +69,44 @@ export function ReviewHistoryCard({ summary, onOpen, onDelete }: ReviewHistoryCa
     onDelete(summary.id);
   };
 
+  const handleClick = () => {
+    if (compareMode) {
+      onToggleSelect?.(summary.id);
+    } else {
+      onOpen(summary.id);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") handleClick();
+  };
+
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => onOpen(summary.id)}
-      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") onOpen(summary.id); }}
-      className="group relative bg-white border border-slate-200 rounded-2xl p-4 cursor-pointer transition-all duration-200 hover:border-sky-300 hover:shadow-md hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={`group relative bg-white border rounded-2xl p-4 cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500/30
+        ${
+          compareMode
+            ? isSelected
+              ? "border-sky-400 ring-2 ring-sky-400/40 shadow-md shadow-sky-100 -translate-y-0.5"
+              : "border-slate-200 hover:border-sky-300 hover:shadow-sm"
+            : "border-slate-200 hover:border-sky-300 hover:shadow-md hover:-translate-y-0.5"
+        }
+      `}
     >
+      {/* Compare mode checkbox overlay */}
+      {compareMode && (
+        <div className="absolute top-3 left-3 z-10">
+          {isSelected
+            ? <CheckSquare2 className="w-5 h-5 text-sky-600 fill-sky-100" />
+            : <Square className="w-5 h-5 text-slate-400" />}
+        </div>
+      )}
       {/* Top row */}
-      <div className="flex items-start justify-between gap-3 mb-3">
+      <div className={`flex items-start justify-between gap-3 mb-3 ${compareMode ? "ml-7" : ""}`}>
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           {/* Category */}
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border select-none ${catMeta.colour}`}>

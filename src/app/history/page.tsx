@@ -24,9 +24,10 @@ import {
   applyReviewHistoryFilters,
 } from "@/components/reviewHistory/ReviewHistoryFilters";
 import { ReviewHistoryDetailModal } from "@/components/reviewHistory/ReviewHistoryDetailModal";
+import { ReviewCompareModal } from "@/components/reviewHistory/ReviewCompareModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ClipboardList, Cpu, Trash2 } from "lucide-react";
+import { ClipboardList, Cpu, Trash2, GitCompare, X as XIcon } from "lucide-react";
 
 // ─── Practice History helpers (unchanged from original) ───────────────────────
 
@@ -196,6 +197,48 @@ export default function History() {
     return applyReviewHistoryFilters(summaries, reviewFilters);
   }, [summaries, reviewFilters]);
 
+  // ── Compare mode state ─────────────────────────────────────────────────────
+  const [compareMode, setCompareMode] = React.useState(false);
+  const [selectedForCompare, setSelectedForCompare] = React.useState<string[]>([]);
+  const [compareModalOpen, setCompareModalOpen] = React.useState(false);
+  const [compareLeft, setCompareLeft] = React.useState<ReviewHistoryEntry | null>(null);
+  const [compareRight, setCompareRight] = React.useState<ReviewHistoryEntry | null>(null);
+  const [compareLoading, setCompareLoading] = React.useState(false);
+
+  const handleToggleCompareMode = React.useCallback(() => {
+    setCompareMode(prev => !prev);
+    setSelectedForCompare([]);
+  }, []);
+
+  const handleToggleSelectForCompare = React.useCallback((id: string) => {
+    setSelectedForCompare(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= 2) return prev; // max 2
+      return [...prev, id];
+    });
+  }, []);
+
+  const handleOpenComparison = React.useCallback(async () => {
+    if (selectedForCompare.length !== 2) return;
+    setCompareLoading(true);
+    setCompareLeft(null);
+    setCompareRight(null);
+    setCompareModalOpen(true);
+    const [l, r] = await Promise.all([
+      getFullReview(selectedForCompare[0]),
+      getFullReview(selectedForCompare[1]),
+    ]);
+    setCompareLeft(l);
+    setCompareRight(r);
+    setCompareLoading(false);
+  }, [selectedForCompare, getFullReview]);
+
+  const handleCloseComparison = React.useCallback(() => {
+    setCompareModalOpen(false);
+    setCompareLeft(null);
+    setCompareRight(null);
+  }, []);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8 select-none max-w-5xl">
@@ -345,36 +388,68 @@ export default function History() {
                 />
               </div>
 
-              {/* Clear all button */}
-              <div className="flex items-center justify-between">
+              {/* Toolbar: count + compare toggle + clear all */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-xs text-slate-500 font-medium">
                   {summaries.length} review{summaries.length !== 1 ? "s" : ""} saved
                 </p>
-                {!showClearConfirm ? (
-                  <button
-                    onClick={() => setShowClearConfirm(true)}
-                    className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Clear All History
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-red-700 font-semibold">Delete all {summaries.length} reviews?</span>
+                <div className="flex items-center gap-2">
+                  {/* Compare toggle button */}
+                  {summaries.length >= 2 && !showClearConfirm && (
                     <button
-                      onClick={handleClearHistory}
-                      className="px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 cursor-pointer"
+                      type="button"
+                      onClick={handleToggleCompareMode}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        compareMode
+                          ? "bg-sky-600 text-white border-sky-600 hover:bg-sky-700"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-sky-400 hover:text-sky-700"
+                      }`}
                     >
-                      Confirm
+                      {compareMode ? <XIcon className="w-3.5 h-3.5" /> : <GitCompare className="w-3.5 h-3.5" />}
+                      {compareMode ? "Exit Compare" : "Compare"}
                     </button>
+                  )}
+
+                  {/* Clear all */}
+                  {!showClearConfirm && !compareMode ? (
                     <button
-                      onClick={() => setShowClearConfirm(false)}
-                      className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 cursor-pointer"
+                      onClick={() => setShowClearConfirm(true)}
+                      className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-semibold cursor-pointer"
                     >
-                      Cancel
+                      <Trash2 className="w-3.5 h-3.5" /> Clear All History
                     </button>
-                  </div>
-                )}
+                  ) : showClearConfirm ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-red-700 font-semibold">Delete all {summaries.length} reviews?</span>
+                      <button
+                        onClick={handleClearHistory}
+                        className="px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 cursor-pointer"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setShowClearConfirm(false)}
+                        className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-200 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
+
+              {/* Compare mode hint */}
+              {compareMode && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-800 font-medium">
+                  <GitCompare className="w-3.5 h-3.5 shrink-0 text-sky-600" />
+                  <span>
+                    Select exactly <strong>2 reviews</strong> to compare them side-by-side.
+                    {selectedForCompare.length > 0 && (
+                      <span className="ml-1 text-sky-600 font-bold">({selectedForCompare.length}/2 selected)</span>
+                    )}
+                  </span>
+                </div>
+              )}
 
               {/* Card grid */}
               {filteredReviewSummaries.length > 0 ? (
@@ -385,6 +460,9 @@ export default function History() {
                       summary={s}
                       onOpen={handleOpenReview}
                       onDelete={handleDeleteReview}
+                      compareMode={compareMode}
+                      isSelected={selectedForCompare.includes(s.id)}
+                      onToggleSelect={handleToggleSelectForCompare}
                     />
                   ))}
                 </div>
@@ -414,6 +492,40 @@ export default function History() {
           onClose={handleCloseModal}
           onError={(msg) => showToast(msg)}
         />
+      )}
+
+      {/* Compare modal */}
+      {compareModalOpen && (
+        <ReviewCompareModal
+          left={compareLeft}
+          right={compareRight}
+          loading={compareLoading}
+          onClose={handleCloseComparison}
+          onError={(msg) => showToast(msg)}
+        />
+      )}
+
+      {/* Sticky compare footer */}
+      {compareMode && selectedForCompare.length === 2 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-sky-700 text-white rounded-2xl shadow-2xl shadow-sky-900/30 border border-sky-600">
+          <GitCompare className="w-4 h-4 shrink-0" />
+          <span className="text-sm font-bold">2 reviews selected</span>
+          <button
+            type="button"
+            onClick={handleOpenComparison}
+            className="px-4 py-1.5 bg-white text-sky-800 text-xs font-extrabold rounded-xl hover:bg-sky-50 transition-colors cursor-pointer"
+          >
+            Compare Selected Reviews
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedForCompare([])}
+            className="p-1 rounded-lg hover:bg-sky-600 text-sky-200 hover:text-white transition-colors cursor-pointer"
+            aria-label="Clear selection"
+          >
+            <XIcon className="w-4 h-4" />
+          </button>
+        </div>
       )}
     </div>
   );
