@@ -42,6 +42,9 @@ function formatAbsolute(iso: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+import { ReviewCollection } from "@/services/collectionTypes";
+import { FolderPlus } from "lucide-react";
+
 interface ReviewHistoryCardProps {
   summary: ReviewHistorySummary;
   onOpen: (id: string) => void;
@@ -52,6 +55,10 @@ interface ReviewHistoryCardProps {
   isSelected?: boolean;
   /** Called when the user toggles this card's selection */
   onToggleSelect?: (id: string) => void;
+  /** Collections that contain this review */
+  collections?: ReviewCollection[];
+  /** Trigger add to collection modal for this review */
+  onAddToCollection?: (id: string) => void;
 }
 
 export function ReviewHistoryCard({
@@ -61,6 +68,8 @@ export function ReviewHistoryCard({
   compareMode = false,
   isSelected = false,
   onToggleSelect,
+  collections = [],
+  onAddToCollection,
 }: ReviewHistoryCardProps) {
   const catMeta = CATEGORY_META[summary.category] ?? { label: summary.category, colour: "bg-slate-100 text-slate-600 border-slate-200" };
 
@@ -124,17 +133,47 @@ export function ReviewHistoryCard({
           )}
         </div>
 
-        {/* Delete button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-slate-400 hover:text-red-500 cursor-pointer"
-          onClick={handleDelete}
-          aria-label="Delete review"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </Button>
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onAddToCollection && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToCollection(summary.id);
+              }}
+              title="Add to Collection"
+              className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-1.5 text-slate-400 hover:text-red-500 cursor-pointer"
+            onClick={handleDelete}
+            aria-label="Delete review"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
+
+      {/* Collection Badges */}
+      {collections.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          {collections.map((col) => (
+            <span
+              key={col.id}
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+              {col.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Code preview */}
       {summary.codePreview && (

@@ -25,9 +25,14 @@ import {
 } from "@/components/reviewHistory/ReviewHistoryFilters";
 import { ReviewHistoryDetailModal } from "@/components/reviewHistory/ReviewHistoryDetailModal";
 import { ReviewCompareModal } from "@/components/reviewHistory/ReviewCompareModal";
+import { useReviewCollections } from "@/hooks/useReviewCollections";
+import { CollectionManagerModal } from "@/components/collections/CollectionManagerModal";
+import { CollectionDetailModal } from "@/components/collections/CollectionDetailModal";
+import { AddToCollectionModal } from "@/components/collections/AddToCollectionModal";
+import { ReviewCollection } from "@/services/collectionTypes";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { ClipboardList, Cpu, Trash2, GitCompare, X as XIcon } from "lucide-react";
+import { ClipboardList, Cpu, Trash2, GitCompare, X as XIcon, Folder, FolderPlus } from "lucide-react";
 
 // ─── Practice History helpers (unchanged from original) ───────────────────────
 
@@ -239,6 +244,14 @@ export default function History() {
     setCompareRight(null);
   }, []);
 
+  // ── Collections state ──────────────────────────────────────────────────────
+  const validReviewIds = React.useMemo(() => summaries.map((s) => s.id), [summaries]);
+  const { collections, getCollectionsForReview } = useReviewCollections(validReviewIds);
+
+  const [isCollectionManagerOpen, setIsCollectionManagerOpen] = React.useState(false);
+  const [selectedDetailCollection, setSelectedDetailCollection] = React.useState<ReviewCollection | null>(null);
+  const [addToCollectionReviewIds, setAddToCollectionReviewIds] = React.useState<string[] | null>(null);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8 select-none max-w-5xl">
@@ -394,6 +407,23 @@ export default function History() {
                   {summaries.length} review{summaries.length !== 1 ? "s" : ""} saved
                 </p>
                 <div className="flex items-center gap-2">
+                  {/* Collections button */}
+                  {!showClearConfirm && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCollectionManagerOpen(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Collections</span>
+                      {collections.length > 0 && (
+                        <span className="ml-1 px-1.5 py-0.2 bg-sky-100 text-sky-700 rounded-full text-[10px] font-bold">
+                          {collections.length}
+                        </span>
+                      )}
+                    </button>
+                  )}
+
                   {/* Compare toggle button */}
                   {summaries.length >= 2 && !showClearConfirm && (
                     <button
@@ -463,6 +493,8 @@ export default function History() {
                       compareMode={compareMode}
                       isSelected={selectedForCompare.includes(s.id)}
                       onToggleSelect={handleToggleSelectForCompare}
+                      collections={getCollectionsForReview(s.id)}
+                      onAddToCollection={(id) => setAddToCollectionReviewIds([id])}
                     />
                   ))}
                 </div>
@@ -505,17 +537,59 @@ export default function History() {
         />
       )}
 
+      {/* Collection Manager Modal */}
+      {isCollectionManagerOpen && (
+        <CollectionManagerModal
+          isOpen={isCollectionManagerOpen}
+          onClose={() => setIsCollectionManagerOpen(false)}
+          onSelectCollection={(col) => setSelectedDetailCollection(col)}
+          onError={(msg) => showToast(msg)}
+        />
+      )}
+
+      {/* Collection Detail Modal */}
+      {selectedDetailCollection && (
+        <CollectionDetailModal
+          collection={selectedDetailCollection}
+          isOpen={Boolean(selectedDetailCollection)}
+          onClose={() => setSelectedDetailCollection(null)}
+          onError={(msg) => showToast(msg)}
+        />
+      )}
+
+      {/* Add to Collection Modal */}
+      {addToCollectionReviewIds && (
+        <AddToCollectionModal
+          isOpen={Boolean(addToCollectionReviewIds)}
+          reviewIds={addToCollectionReviewIds}
+          onClose={() => setAddToCollectionReviewIds(null)}
+          onSuccess={(msg) => showToast(msg)}
+        />
+      )}
+
       {/* Sticky compare footer */}
-      {compareMode && selectedForCompare.length === 2 && (
+      {compareMode && selectedForCompare.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-5 py-3 bg-sky-700 text-white rounded-2xl shadow-2xl shadow-sky-900/30 border border-sky-600">
           <GitCompare className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-bold">2 reviews selected</span>
+          <span className="text-sm font-bold">
+            {selectedForCompare.length} review{selectedForCompare.length > 1 ? "s" : ""} selected
+          </span>
+          {selectedForCompare.length === 2 && (
+            <button
+              type="button"
+              onClick={handleOpenComparison}
+              className="px-4 py-1.5 bg-white text-sky-800 text-xs font-extrabold rounded-xl hover:bg-sky-50 transition-colors cursor-pointer"
+            >
+              Compare Selected Reviews
+            </button>
+          )}
           <button
             type="button"
-            onClick={handleOpenComparison}
-            className="px-4 py-1.5 bg-white text-sky-800 text-xs font-extrabold rounded-xl hover:bg-sky-50 transition-colors cursor-pointer"
+            onClick={() => setAddToCollectionReviewIds(selectedForCompare)}
+            className="px-3 py-1.5 bg-sky-600 text-white border border-sky-500 text-xs font-bold rounded-xl hover:bg-sky-500 transition-colors cursor-pointer flex items-center gap-1"
           >
-            Compare Selected Reviews
+            <FolderPlus className="w-3.5 h-3.5" />
+            Add to Collection
           </button>
           <button
             type="button"
