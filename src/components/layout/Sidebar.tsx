@@ -7,6 +7,7 @@ import {
   BookOpen,
   Cpu,
   History,
+  BarChart2,
   User,
   Settings,
   ChevronLeft,
@@ -35,6 +36,7 @@ export function Sidebar({
     { name: "Today's Practice", href: "/practice", icon: BookOpen },
     { name: "AI Review", href: "/review", icon: Cpu },
     { name: "History", href: "/history", icon: History },
+    { name: "Dashboard", href: "/dashboard", icon: BarChart2 },
     { name: "Profile", href: "/profile", icon: User },
     { name: "Settings", href: "/settings", icon: Settings },
   ];

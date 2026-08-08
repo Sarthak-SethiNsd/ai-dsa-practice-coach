@@ -35,6 +35,11 @@ export interface ReviewHistoryStorageProvider {
   deleteById(id: string): Promise<void>;
 
   /**
+   * Returns all full history entries, newest first.
+   */
+  getAllEntries(): Promise<ReviewHistoryEntry[]>;
+
+  /**
    * Permanently removes all history entries.
    */
   clearAll(): Promise<void>;
@@ -97,6 +102,10 @@ export class LocalStorageReviewHistoryStorage implements ReviewHistoryStoragePro
 
   async getAllSummaries(): Promise<ReviewHistorySummary[]> {
     return this.loadAll().map(e => this.toSummary(e));
+  }
+
+  async getAllEntries(): Promise<ReviewHistoryEntry[]> {
+    return this.loadAll();
   }
 
   async getById(id: string): Promise<ReviewHistoryEntry | null> {
