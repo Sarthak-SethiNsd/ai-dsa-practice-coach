@@ -8,6 +8,7 @@ import {
   Cpu,
   History,
   BarChart2,
+  Library,
   User,
   Settings,
   ChevronLeft,
@@ -32,13 +33,14 @@ export function Sidebar({
   const pathname = usePathname();
 
   const navigationItems = [
-    { name: "Home", href: "/", icon: Home },
-    { name: "Today's Practice", href: "/practice", icon: BookOpen },
-    { name: "AI Review", href: "/review", icon: Cpu },
-    { name: "History", href: "/history", icon: History },
-    { name: "Dashboard", href: "/dashboard", icon: BarChart2 },
-    { name: "Profile", href: "/profile", icon: User },
-    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "Home",              href: "/",            icon: Home      },
+    { name: "Today's Practice",  href: "/practice",    icon: BookOpen  },
+    { name: "AI Review",         href: "/review",      icon: Cpu       },
+    { name: "History",           href: "/history",     icon: History   },
+    { name: "Dashboard",         href: "/dashboard",   icon: BarChart2 },
+    { name: "Collections",       href: "/collections", icon: Library   },
+    { name: "Profile",           href: "/profile",     icon: User      },
+    { name: "Settings",          href: "/settings",    icon: Settings  },
   ];
 
   const getLinkClasses = (href: string) => {

@@ -3,6 +3,14 @@
 import * as React from "react";
 import { TimeSeriesPoint, Distributions } from "@/services/dashboardTypes";
 import { ChartCard } from "./ChartCard";
+
+// Narrow types for Recharts callbacks
+interface PieLabelEntry {
+  name?: string;
+  count?: number;
+  percentage?: number;
+  percent?: number;
+}
 import {
   ResponsiveContainer,
   LineChart,
@@ -78,7 +86,7 @@ export function DashboardCharts({
                     color: "#fff",
                     fontSize: "12px",
                   }}
-                  formatter={(val: any) => [`${val || 0} pts`, "Quality Score"]}
+                  formatter={(val) => [`${val ?? 0} pts`, "Quality Score"]}
                 />
                 <Line
                   type="monotone"
@@ -115,7 +123,7 @@ export function DashboardCharts({
                     color: "#fff",
                     fontSize: "12px",
                   }}
-                  formatter={(val: any) => [`${val || 0} review(s)`, "Submissions"]}
+                  formatter={(val) => [`${val ?? 0} review(s)`, "Submissions"]}
                 />
                 <Bar dataKey="reviewCount" fill="#6366f1" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -154,7 +162,7 @@ export function DashboardCharts({
                     color: "#fff",
                     fontSize: "12px",
                   }}
-                  formatter={(val: any) => [`${Number(val || 0).toLocaleString()} tokens`, "Total Usage"]}
+                  formatter={(val) => [`${Number(val ?? 0).toLocaleString()} tokens`, "Total Usage"]}
                 />
                 <Area
                   type="monotone"
@@ -190,7 +198,7 @@ export function DashboardCharts({
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#64748b" }} />
                 <YAxis
                   tick={{ fontSize: 10, fill: "#64748b" }}
-                  tickFormatter={(v: any) => `${(Number(v || 0) / 1000).toFixed(1)}s`}
+                  tickFormatter={(v) => `${(Number(v ?? 0) / 1000).toFixed(1)}s`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -200,7 +208,7 @@ export function DashboardCharts({
                     color: "#fff",
                     fontSize: "12px",
                   }}
-                  formatter={(val: any) => [`${(Number(val || 0) / 1000).toFixed(2)}s`, "Avg Duration"]}
+                  formatter={(val) => [`${(Number(val ?? 0) / 1000).toFixed(2)}s`, "Avg Duration"]}
                 />
                 <Area
                   type="monotone"
@@ -238,7 +246,7 @@ export function DashboardCharts({
                   innerRadius={45}
                   outerRadius={75}
                   paddingAngle={3}
-                  label={(entry: any) => `${entry.name} (${entry.percentage ?? Math.round((entry.percent || 0) * 100)}%)`}
+                  label={(entry: PieLabelEntry) => `${entry.name} (${entry.percentage ?? Math.round((entry.percent || 0) * 100)}%)`}
                 >
                   {distributions.languages.map((_, index) => (
                     <Cell key={`cell-lang-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -278,7 +286,7 @@ export function DashboardCharts({
                   innerRadius={45}
                   outerRadius={75}
                   paddingAngle={3}
-                  label={(entry: any) => `${entry.name?.split(" ")[0]} (${entry.count})`}
+                  label={(entry: PieLabelEntry) => `${entry.name?.split(" ")[0]} (${entry.count})`}
                 >
                   {distributions.categories.map((_, index) => (
                     <Cell key={`cell-cat-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
@@ -390,7 +398,7 @@ export function DashboardCharts({
                   innerRadius={40}
                   outerRadius={70}
                   paddingAngle={3}
-                  label={(entry: any) => `${entry.name} (${entry.count})`}
+                  label={(entry: PieLabelEntry) => `${entry.name} (${entry.count})`}
                 >
                   {distributions.providers.map((_, index) => (
                     <Cell key={`cell-prov-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
