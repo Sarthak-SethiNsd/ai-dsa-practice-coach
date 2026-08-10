@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   ReviewCollection,
   CollectionColor,
-  CreateCollectionPayload,
 } from "@/services/collectionTypes";
 import { COLOR_PALETTE } from "@/services/questionCollectionAnalytics";
 import { DEFAULT_COLLECTION_COLORS } from "@/services/reviewCollectionStorage";
