@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Map
+  Map,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -42,6 +43,7 @@ export function Sidebar({
     { name: "Dashboard",         href: "/dashboard",       icon: BarChart2 },
     { name: "Recommendations",   href: "/recommendations", icon: Sparkles  },
     { name: "Roadmap",           href: "/roadmap",         icon: Map       },
+    { name: "Questions",         href: "/questions",       icon: Target    },
     { name: "Collections",       href: "/collections",     icon: Library   },
     { name: "Profile",           href: "/profile",         icon: User      },
     { name: "Settings",          href: "/settings",        icon: Settings  },
