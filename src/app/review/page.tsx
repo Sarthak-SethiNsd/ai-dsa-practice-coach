@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Cpu, Code2, RefreshCw, Zap, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Cpu, Code2, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAppContext } from "@/context/AppContext";
 import { aiReviewService } from "@/services/ai/aiReviewService";
@@ -27,15 +27,13 @@ export default function ReviewPage() {
   } = useAppContext();
 
   // Selected problem state
-  const [activeProblem, setActiveProblem] = React.useState<Problem | null>(selectedReviewProblem || null);
-  const [isProblemModalOpen, setIsProblemModalOpen] = React.useState(false);
+  const [localProblem, setLocalProblem] = React.useState<Problem | null>(null);
+  const activeProblem = selectedReviewProblem || localProblem;
+  const setActiveProblem = React.useCallback((p: Problem | null) => {
+    setLocalProblem(p);
+  }, []);
 
-  // Sync with context if selectedReviewProblem changes
-  React.useEffect(() => {
-    if (selectedReviewProblem) {
-      setActiveProblem(selectedReviewProblem);
-    }
-  }, [selectedReviewProblem]);
+  const [isProblemModalOpen, setIsProblemModalOpen] = React.useState(false);
 
   // Language state (Java default as primary)
   const [language, setLanguage] = React.useState<string>(selectedLanguage || "Java");
@@ -77,8 +75,18 @@ export default function ReviewPage() {
   }, []);
 
   React.useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
+    let cancelled = false;
+    const fetch = async () => {
+      try {
+        const data = await reviewHistoryStorage.getAllEntries();
+        if (!cancelled) setHistoryEntries(data);
+      } catch (err) {
+        console.error("[ReviewPage] Load history error:", err);
+      }
+    };
+    fetch();
+    return () => { cancelled = true; };
+  }, []);
 
   // Source code validation
   const validation = React.useMemo(() => {
@@ -147,9 +155,10 @@ export default function ReviewPage() {
       setReviewResult(result);
       showToast?.("AI review generated & saved to history!");
       await loadHistory();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[ReviewPage] Review generation error:", err);
-      showToast?.(err.message || "Failed to generate review");
+      const msg = err instanceof Error ? err.message : "Failed to generate review";
+      showToast?.(msg);
     } finally {
       setIsLoading(false);
     }

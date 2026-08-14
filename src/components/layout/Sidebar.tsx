@@ -16,7 +16,8 @@ import {
   ChevronRight,
   X,
   Map,
-  Target
+  Target,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -36,17 +37,18 @@ export function Sidebar({
   const pathname = usePathname();
 
   const navigationItems = [
-    { name: "Home",              href: "/",                icon: Home      },
-    { name: "Today's Practice",  href: "/practice",        icon: BookOpen  },
-    { name: "History",           href: "/history",         icon: History   },
-    { name: "Dashboard",         href: "/dashboard",       icon: BarChart2 },
-    { name: "Recommendations",   href: "/recommendations", icon: Sparkles  },
-    { name: "Roadmap",           href: "/roadmap",         icon: Map       },
-    { name: "Questions",         href: "/questions",       icon: Target    },
-    { name: "AI Review",         href: "/review",          icon: Cpu       },
-    { name: "Collections",       href: "/collections",     icon: Library   },
-    { name: "Profile",           href: "/profile",         icon: User      },
-    { name: "Settings",          href: "/settings",        icon: Settings  },
+    { name: "Home",              href: "/",                icon: Home       },
+    { name: "Today's Practice",  href: "/practice",        icon: BookOpen   },
+    { name: "History",           href: "/history",         icon: History    },
+    { name: "Dashboard",         href: "/dashboard",       icon: BarChart2  },
+    { name: "Recommendations",   href: "/recommendations", icon: Sparkles   },
+    { name: "Roadmap",           href: "/roadmap",         icon: Map        },
+    { name: "Questions",         href: "/questions",       icon: Target     },
+    { name: "AI Review",         href: "/review",          icon: Cpu        },
+    { name: "Analytics",         href: "/analytics",       icon: TrendingUp },
+    { name: "Collections",       href: "/collections",     icon: Library    },
+    { name: "Profile",           href: "/profile",         icon: User       },
+    { name: "Settings",          href: "/settings",        icon: Settings   },
   ];
 
   const getLinkClasses = (href: string) => {

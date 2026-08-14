@@ -13,11 +13,11 @@ import {
   Shield,
   BookOpen,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import {
   QuestionRecommendation,
   QuestionRecommendationFilter,
   QuestionCategory,
+  QuestionRecommendationStatus,
 } from "@/services/questionRecommendationTypes";
 import { Platform, Difficulty } from "@/services/types";
 
@@ -92,7 +92,7 @@ export function RecommendedQuestionsGrid({
           {/* Status Filter */}
           <select
             value={filters.status}
-            onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value as any }))}
+            onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value as QuestionRecommendationStatus | "All" }))}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
           >
             <option value="All">All Statuses</option>
@@ -236,7 +236,7 @@ export function QuestionCard({
 
         {/* Reason Quote */}
         <p className="text-xs text-slate-600 italic bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 mb-4">
-          "{q.recommendationReason}"
+          &ldquo;{q.recommendationReason}&rdquo;
         </p>
       </div>
 

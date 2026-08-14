@@ -79,7 +79,7 @@ export function RecommendationAnalyticsPanel({ analytics }: RecommendationAnalyt
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <span className="font-bold text-slate-600 w-12 text-right">{item.count} q's</span>
+                  <span className="font-bold text-slate-600 w-12 text-right">{item.count} q&apos;s</span>
                 </div>
               );
             })}

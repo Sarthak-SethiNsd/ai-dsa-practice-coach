@@ -57,46 +57,8 @@ export function useQuestionRecommendations(): UseQuestionRecommendationsReturn {
   const [filters, setFilters] = React.useState<QuestionRecommendationFilter>(DEFAULT_FILTERS);
 
   // ─── Initial Load ───────────────────────────────────────────────────────────
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [savedBatch, solvedData, skippedData, viewedData] = await Promise.all([
-          questionRecommendationStorage.getBatch(),
-          questionRecommendationStorage.getSolved(),
-          questionRecommendationStorage.getSkipped(),
-          questionRecommendationStorage.getViewed(),
-        ]);
-
-        if (cancelled) return;
-
-        setSolvedMap(solvedData);
-        setSkippedMap(skippedData);
-        setViewedMap(viewedData);
-
-        if (savedBatch) {
-          setBatch(savedBatch);
-        } else {
-          // Auto-generate if no batch exists yet
-          await autoGenerateInternal(solvedData, skippedData);
-        }
-      } catch (err) {
-        console.error("[useQuestionRecommendations] Initial load error:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Internal generator helper
-  const autoGenerateInternal = async (
+  const autoGenerateInternal = React.useCallback(async (
     solved: Record<string, string>,
     skipped: Record<string, string>
   ) => {
@@ -127,7 +89,43 @@ export function useQuestionRecommendations(): UseQuestionRecommendationsReturn {
     } catch (err) {
       console.error("[useQuestionRecommendations] Auto generate error:", err);
     }
-  };
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [savedBatch, solvedData, skippedData, viewedData] = await Promise.all([
+          questionRecommendationStorage.getBatch(),
+          questionRecommendationStorage.getSolved(),
+          questionRecommendationStorage.getSkipped(),
+          questionRecommendationStorage.getViewed(),
+        ]);
+
+        if (cancelled) return;
+
+        setSolvedMap(solvedData);
+        setSkippedMap(skippedData);
+        setViewedMap(viewedData);
+
+        if (savedBatch) {
+          setBatch(savedBatch);
+        } else {
+          // Auto-generate if no batch exists yet
+          await autoGenerateInternal(solvedData, skippedData);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [autoGenerateInternal]);
 
   // ─── Generate Actions ───────────────────────────────────────────────────────
   const generateRecommendations = React.useCallback(async () => {

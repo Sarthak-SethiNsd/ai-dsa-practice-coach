@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Flame, Zap, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Flame, ExternalLink, CheckCircle2 } from "lucide-react";
 import { QuestionRecommendation } from "@/services/questionRecommendationTypes";
 
 interface StretchChallengePanelProps {
@@ -55,7 +55,7 @@ export function StretchChallengePanel({
                 <h4 className="text-sm font-bold text-slate-900 mb-1">{c.title}</h4>
                 <p className="text-xs text-slate-600 mb-3">{c.topic} · {c.difficulty}</p>
                 <p className="text-[11px] text-slate-500 italic bg-orange-50/50 p-2 rounded border border-orange-100/60 mb-3">
-                  "{c.recommendationReason}"
+                  &ldquo;{c.recommendationReason}&rdquo;
                 </p>
               </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ShieldAlert, TrendingDown, Target, Sparkles, ArrowRight } from "lucide-react";
+import { ShieldAlert, TrendingDown, Sparkles } from "lucide-react";
 import { ReviewHistoryEntry } from "@/services/ai/aiTypes";
 
 interface WeaknessInsightsPanelProps {
@@ -11,7 +11,7 @@ interface WeaknessInsightsPanelProps {
 export function WeaknessInsightsPanel({ entries }: WeaknessInsightsPanelProps) {
   // Analyze mistake patterns from review entries
   const stats = React.useMemo(() => {
-    let total = entries.length;
+    const total = entries.length;
     let timeMistakes = 0;
     let spaceMistakes = 0;
     let edgeCaseMistakes = 0;

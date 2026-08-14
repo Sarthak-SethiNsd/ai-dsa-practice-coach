@@ -55,7 +55,7 @@ export function ConfidenceBuilderPanel({
                 <h4 className="text-sm font-bold text-slate-900 mb-1">{b.title}</h4>
                 <p className="text-xs text-slate-600 mb-3">{b.topic} · {b.difficulty}</p>
                 <p className="text-[11px] text-slate-500 italic bg-emerald-50/50 p-2 rounded border border-emerald-100/60 mb-3">
-                  "{b.recommendationReason}"
+                  &ldquo;{b.recommendationReason}&rdquo;
                 </p>
               </div>
 
