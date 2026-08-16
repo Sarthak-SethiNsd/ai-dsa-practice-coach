@@ -174,7 +174,6 @@ export function computeRatingProgressAnalytics(
       contestName: e.contestName,
       platform: e.platform,
     });
-    runningRating = e.ratingAfter;
   });
 
   // Monthly gain

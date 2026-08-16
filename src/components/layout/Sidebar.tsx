@@ -18,7 +18,8 @@ import {
   Map,
   Target,
   TrendingUp,
-  Trophy
+  Trophy,
+  RotateCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -46,7 +47,8 @@ export function Sidebar({
     { name: "Roadmap",           href: "/roadmap",         icon: Map        },
     { name: "Questions",         href: "/questions",       icon: Target     },
     { name: "AI Review",         href: "/review",          icon: Cpu        },
-    { name: "Analytics",         href: "/analytics",           icon: TrendingUp },
+    { name: "Revision (SRS)",    href: "/revision",        icon: RotateCcw  },
+    { name: "Analytics",         href: "/analytics",       icon: TrendingUp },
     { name: "Contest Intelligence", href: "/contest-intelligence", icon: Trophy    },
     { name: "Collections",       href: "/collections",     icon: Library    },
     { name: "Profile",           href: "/profile",         icon: User       },
