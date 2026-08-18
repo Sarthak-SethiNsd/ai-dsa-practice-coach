@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Cpu, Code2, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Cpu, Code2, RefreshCw, CheckCircle2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAppContext } from "@/context/AppContext";
 import { aiReviewService } from "@/services/ai/aiReviewService";
 import { ReviewCategory, ReviewSession, AiReviewResponse, ReviewHistoryEntry } from "@/services/ai/aiTypes";
 import { reviewHistoryStorage } from "@/services/reviewHistoryStorage";
 import { Problem } from "@/services/types";
+import { QuickNoteModal } from "@/components/knowledge/QuickNoteModal";
+import { useKnowledge } from "@/hooks/useKnowledge";
 
 // Modular UI Components
 import { ProblemSelectorModal } from "@/components/review/ProblemSelectorModal";
@@ -25,6 +27,9 @@ export default function ReviewPage() {
     problems,
     showToast,
   } = useAppContext();
+
+  const knowledge = useKnowledge();
+  const [showNoteModal, setShowNoteModal] = React.useState(false);
 
   // Selected problem state
   const [localProblem, setLocalProblem] = React.useState<Problem | null>(null);
@@ -276,6 +281,20 @@ export default function ReviewPage() {
       {/* Historical Review Analytics Panel */}
       <ReviewAnalyticsPanel entries={historyEntries} />
 
+      {/* Quick Note button — shown after a review is generated */}
+      {reviewResult && activeProblem && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="secondary"
+            onClick={() => setShowNoteModal(true)}
+            className="gap-2 cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4" />
+            Save Note for This Problem
+          </Button>
+        </div>
+      )}
+
       {/* Problem Selector Modal */}
       <ProblemSelectorModal
         isOpen={isProblemModalOpen}
@@ -285,6 +304,23 @@ export default function ReviewPage() {
           setCustomCode(null);
         }}
         availableProblems={problems}
+      />
+
+      {/* Knowledge Quick Note Modal */}
+      <QuickNoteModal
+        isOpen={showNoteModal}
+        onClose={() => setShowNoteModal(false)}
+        initialNote={activeProblem ? {
+          problemTitle: activeProblem.title,
+          platform: activeProblem.platform,
+          difficulty: activeProblem.difficulty,
+          topic: activeProblem.topics[0] ?? "",
+          problemUrl: activeProblem.url,
+          keyInsight: reviewResult?.learningTips?.[0] ?? "",
+        } : undefined}
+        availableTags={knowledge.tags}
+        onSaveNote={knowledge.saveNote}
+        onAddCustomTag={knowledge.addCustomTag}
       />
     </main>
   );

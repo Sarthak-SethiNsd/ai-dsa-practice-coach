@@ -110,6 +110,10 @@ export interface AiReviewRequest {
   topics?: string[];
   category?: ReviewCategory;
   config?: Record<string, unknown>;
+  /** Optional: personal notes from Knowledge system to personalise the AI review */
+  userNotes?: string;
+  /** Optional: previous mistake description for context */
+  previousMistakes?: string;
 }
 
 export interface AiReviewResponse {

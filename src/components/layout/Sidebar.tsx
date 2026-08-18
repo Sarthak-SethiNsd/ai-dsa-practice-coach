@@ -20,7 +20,8 @@ import {
   TrendingUp,
   Trophy,
   RotateCcw,
-  Flame
+  Flame,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -43,6 +44,7 @@ export function Sidebar({
     { name: "Home",              href: "/",                icon: Home       },
     { name: "Today's Practice",  href: "/practice",        icon: BookOpen   },
     { name: "Study Session",     href: "/study-session",   icon: Flame      },
+    { name: "Knowledge Base",    href: "/knowledge",       icon: Brain      },
     { name: "History",           href: "/history",         icon: History    },
     { name: "Dashboard",         href: "/dashboard",       icon: BarChart2  },
     { name: "Recommendations",   href: "/recommendations", icon: Sparkles   },

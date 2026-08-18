@@ -15,6 +15,8 @@ import {
 const leetCodeService = new LeetCodeService();
 const codeforcesService = new CodeforcesService();
 
+import { ProblemNote } from "./knowledge/knowledgeTypes";
+
 export interface GenerateQuestionRecommendationsParams {
   entries: ReviewHistoryEntry[];
   collections: ReviewCollection[];
@@ -22,6 +24,7 @@ export interface GenerateQuestionRecommendationsParams {
   roadmap: PracticeRoadmap | null;
   solvedQuestionIds?: Set<string>;
   skippedQuestionIds?: Set<string>;
+  knowledgeNotes?: ProblemNote[];
 }
 
 export async function generateQuestionRecommendations({
@@ -31,6 +34,7 @@ export async function generateQuestionRecommendations({
   roadmap,
   solvedQuestionIds = new Set(),
   skippedQuestionIds = new Set(),
+  knowledgeNotes = [],
 }: GenerateQuestionRecommendationsParams): Promise<RecommendationBatch> {
   const readinessScore = recommendation.overallReadinessScore;
 
@@ -43,10 +47,21 @@ export async function generateQuestionRecommendations({
   const roadmapFocus = roadmap?.dailyMission?.focusTopic;
   const weeklyTopics = roadmap?.weeklyRoadmap?.priorityTopics ?? [];
 
+  // Extract knowledge weak topics & patterns
+  const knowledgeWeakTopics = new Set<string>();
+  const knowledgeRevisitPatterns = new Set<string>();
+  knowledgeNotes.forEach((n) => {
+    if (n.mistakeCategory || n.revisionStatus === "revisit" || n.revisionStatus === "forgotten" || n.tags.includes("Concept Gap")) {
+      knowledgeWeakTopics.add(n.topic);
+      if (n.patternName) knowledgeRevisitPatterns.add(n.patternName);
+    }
+  });
+
   // Build ordered target topics list
   const topicSet = new Set<string>();
   if (weakest) topicSet.add(weakest);
   if (roadmapFocus) topicSet.add(roadmapFocus);
+  knowledgeWeakTopics.forEach((t) => topicSet.add(t));
   if (secondWeakest) topicSet.add(secondWeakest);
   if (neglected) topicSet.add(neglected);
   weeklyTopics.forEach((t) => topicSet.add(t));
@@ -111,6 +126,11 @@ export async function generateQuestionRecommendations({
     if (weakest && problem.topics.includes(weakest)) score += 30;
     else if (secondWeakest && problem.topics.includes(secondWeakest)) score += 20;
     else if (neglected && problem.topics.includes(neglected)) score += 15;
+
+    // Knowledge base weak topics boost (+15 pts)
+    if (knowledgeWeakTopics.has(primaryTopic) || problem.topics.some((t) => knowledgeWeakTopics.has(t))) {
+      score += 15;
+    }
 
     // Roadmap goal match (+20 pts max)
     if (roadmapFocus && problem.topics.includes(roadmapFocus)) score += 20;
