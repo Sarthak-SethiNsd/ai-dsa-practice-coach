@@ -397,6 +397,30 @@ export async function generateDailyPlan(timeBudgetMinutes: number): Promise<Dail
     }
   }
 
+  // ── 7. MOCK_INTERVIEW (if time budget >= 45m and weak topics exist) ────────
+  if (timeBudgetMinutes >= 45 && usedMinutes + 30 <= timeBudgetMinutes && overlappingWeakTopics.length > 0) {
+    const focusTopic = overlappingWeakTopics[0];
+    const displayTopic = focusTopic.charAt(0).toUpperCase() + focusTopic.slice(1);
+
+    actions.push({
+      id: uid(),
+      actionType: "MOCK_INTERVIEW",
+      title: `Mock Interview: ${displayTopic} Drill`,
+      description: `Test your technical communication and complexity breakdown on ${displayTopic} under simulated interview conditions.`,
+      topic: displayTopic,
+      estimatedMinutes: 30,
+      priority: "HIGH",
+      priorityScore: 55,
+      reason: "Reinforce weak topic with simulated interviewer pressure and live think-aloud evaluation",
+      expectedOutcome: `Benchmark your ${displayTopic} interview readiness and test edge-case awareness`,
+      goalAlignment: "High",
+      status: "pending",
+      sourceRef: { type: "interview", id: "mock_interview_drill" },
+    });
+
+    usedMinutes += 30;
+  }
+
   // ── Sort by priority score descending ──────────────────────────────────────
   actions.sort((a, b) => b.priorityScore - a.priorityScore);
 

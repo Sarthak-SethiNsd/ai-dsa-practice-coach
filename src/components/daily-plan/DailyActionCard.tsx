@@ -14,6 +14,7 @@ import {
   Brain,
   Trophy,
   RefreshCcw,
+  Briefcase,
 } from "lucide-react";
 import { DailyAction, ActionType } from "@/services/dailyPlan/dailyPlanTypes";
 import { PriorityBadge } from "./PriorityBadge";
@@ -72,6 +73,12 @@ const ACTION_META: Record<
     icon: RefreshCcw,
     color: "text-emerald-600",
     bg: "bg-emerald-50 border-emerald-200",
+  },
+  MOCK_INTERVIEW: {
+    label: "Mock Interview",
+    icon: Briefcase,
+    color: "text-blue-600",
+    bg: "bg-blue-50 border-blue-200",
   },
 };
 
