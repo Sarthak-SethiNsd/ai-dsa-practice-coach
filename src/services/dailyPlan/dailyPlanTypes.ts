@@ -9,7 +9,8 @@ export type ActionType =
   | "STUDY_SESSION"        // Focused study block
   | "REVIEW_PREVIOUS_MISTAKE" // Re-analyzing past mistake patterns
   | "ROADMAP_STEP"         // Next milestone in active practice roadmap
-  | "MOCK_INTERVIEW";      // Structured AI Mock Technical Interview
+  | "MOCK_INTERVIEW"       // Structured AI Mock Technical Interview
+  | "VIRTUAL_CONTEST";     // Timed Virtual Contest simulation
 
 export type PriorityLevel = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
@@ -42,7 +43,7 @@ export interface DailyAction {
   skippedAt?: string;   // ISO datetime when skipped
   // Back-reference to source subsystem record
   sourceRef?: {
-    type: "revision" | "roadmap" | "recommendation" | "contest" | "knowledge" | "study" | "interview";
+    type: "revision" | "roadmap" | "recommendation" | "contest" | "knowledge" | "study" | "interview" | "vcontest";
     id: string;
   };
 }

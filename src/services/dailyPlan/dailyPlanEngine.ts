@@ -421,6 +421,27 @@ export async function generateDailyPlan(timeBudgetMinutes: number): Promise<Dail
     usedMinutes += 30;
   }
 
+  // ── 8. VIRTUAL_CONTEST (if time budget >= 60m and contest prep is relevant) ──
+  if (timeBudgetMinutes >= 60 && usedMinutes + 45 <= timeBudgetMinutes && (hasContestWithin3Days || overlappingWeakTopics.length > 0)) {
+    actions.push({
+      id: uid(),
+      actionType: "VIRTUAL_CONTEST",
+      title: "Virtual Contest Simulation (45m)",
+      description: "Run a timed 3-problem contest with real platform problems, test submission accuracy, and evaluate competitive pace.",
+      topic: "Contest Simulation",
+      estimatedMinutes: 45,
+      priority: "HIGH",
+      priorityScore: 58,
+      reason: "Build real-time competitive endurance, practice problem triage, and benchmark your solve rate",
+      expectedOutcome: "Complete a timed contest simulation and feed performance weaknesses into the learning loop",
+      goalAlignment: "High",
+      status: "pending",
+      sourceRef: { type: "vcontest", id: "virtual_contest_drill" },
+    });
+
+    usedMinutes += 45;
+  }
+
   // ── Sort by priority score descending ──────────────────────────────────────
   actions.sort((a, b) => b.priorityScore - a.priorityScore);
 

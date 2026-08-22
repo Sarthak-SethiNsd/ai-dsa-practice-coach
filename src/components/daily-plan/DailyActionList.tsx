@@ -15,6 +15,7 @@ const FILTER_TABS: { label: string; value: FilterTab }[] = [
   { label: "Contest", value: "CONTEST_PREP" },
   { label: "Mistakes", value: "REVIEW_PREVIOUS_MISTAKE" },
   { label: "Mock Interview", value: "MOCK_INTERVIEW" },
+  { label: "Virtual Contest", value: "VIRTUAL_CONTEST" },
 ];
 
 interface DailyActionListProps {

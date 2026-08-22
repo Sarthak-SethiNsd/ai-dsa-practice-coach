@@ -24,7 +24,8 @@ import {
   Brain,
   Award,
   Compass,
-  Briefcase
+  Briefcase,
+  Swords
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -47,6 +48,7 @@ export function Sidebar({
   const navigationItems = [
     { name: "Home",              href: "/",                icon: Home       },
     { name: "Today's Plan",      href: "/today",           icon: Compass    },
+    { name: "Virtual Contest",   href: "/virtual-contest", icon: Swords     },
     { name: "Mock Interview",    href: "/mock-interview",  icon: Briefcase  },
     { name: "Today's Practice",  href: "/practice",        icon: BookOpen   },
     { name: "Study Session",     href: "/study-session",   icon: Flame      },

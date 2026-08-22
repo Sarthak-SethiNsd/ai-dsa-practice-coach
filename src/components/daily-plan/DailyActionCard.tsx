@@ -80,6 +80,12 @@ const ACTION_META: Record<
     color: "text-blue-600",
     bg: "bg-blue-50 border-blue-200",
   },
+  VIRTUAL_CONTEST: {
+    label: "Virtual Contest",
+    icon: Trophy,
+    color: "text-amber-600",
+    bg: "bg-amber-50 border-amber-200",
+  },
 };
 
 const DIFFICULTY_COLORS: Record<string, string> = {
