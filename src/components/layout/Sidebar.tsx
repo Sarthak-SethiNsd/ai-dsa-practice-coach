@@ -47,6 +47,7 @@ export function Sidebar({
 
   const navigationItems = [
     { name: "Home",              href: "/",                icon: Home       },
+    { name: "Preparation",       href: "/preparation",     icon: Target     },
     { name: "Today's Plan",      href: "/today",           icon: Compass    },
     { name: "Virtual Contest",   href: "/virtual-contest", icon: Swords     },
     { name: "Mock Interview",    href: "/mock-interview",  icon: Briefcase  },
