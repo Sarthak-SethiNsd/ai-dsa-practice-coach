@@ -25,7 +25,8 @@ import {
   Award,
   Compass,
   Briefcase,
-  Swords
+  Swords,
+  Network
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -49,6 +50,7 @@ export function Sidebar({
     { name: "Home",              href: "/",                icon: Home       },
     { name: "Preparation",       href: "/preparation",     icon: Target     },
     { name: "Today's Plan",      href: "/today",           icon: Compass    },
+    { name: "Learning Graph",    href: "/learning-graph",  icon: Network    },
     { name: "Virtual Contest",   href: "/virtual-contest", icon: Swords     },
     { name: "Mock Interview",    href: "/mock-interview",  icon: Briefcase  },
     { name: "Today's Practice",  href: "/practice",        icon: BookOpen   },
