@@ -53,7 +53,7 @@ export function Sidebar({
     { name: "Learning Graph",    href: "/learning-graph",  icon: Network    },
     { name: "Virtual Contest",   href: "/virtual-contest", icon: Swords     },
     { name: "Mock Interview",    href: "/mock-interview",  icon: Briefcase  },
-    { name: "Today's Practice",  href: "/practice",        icon: BookOpen   },
+    { name: "Adaptive Practice", href: "/practice",        icon: BookOpen   },
     { name: "Study Session",     href: "/study-session",   icon: Flame      },
     { name: "Knowledge Base",    href: "/knowledge",       icon: Brain      },
     { name: "History",           href: "/history",         icon: History    },

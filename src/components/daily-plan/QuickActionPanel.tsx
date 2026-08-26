@@ -63,6 +63,19 @@ export function QuickActionPanel({ plan, onComplete }: QuickActionPanelProps) {
             </button>
           </div>
         )}
+        {/* Start Adaptive Session Button */}
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-800">Adaptive Practice</p>
+            <p className="text-[11px] text-slate-500">{plan.timeBudgetMinutes}m DSA session</p>
+          </div>
+          <a
+            href={`/practice?duration=${plan.timeBudgetMinutes}&mode=smart_practice`}
+            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors"
+          >
+            Start Adaptive Session →
+          </a>
+        </div>
       </div>
     </div>
   );
