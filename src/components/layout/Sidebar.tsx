@@ -28,6 +28,7 @@ import {
   Swords,
   Network,
   LineChart,
+  Zap,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -66,6 +67,7 @@ export function Sidebar({
     { name: "Revision (SRS)",    href: "/revision",        icon: RotateCcw  },
     { name: "Analytics",         href: "/analytics",       icon: TrendingUp },
     { name: "Performance Intelligence", href: "/performance", icon: LineChart },
+    { name: "Adaptive Strategy", href: "/strategy",        icon: Zap        },
     { name: "Progress Reports",  href: "/progress",        icon: Award      },
     { name: "Contest Intelligence", href: "/contest-intelligence", icon: Trophy    },
     { name: "Collections",       href: "/collections",     icon: Library    },
