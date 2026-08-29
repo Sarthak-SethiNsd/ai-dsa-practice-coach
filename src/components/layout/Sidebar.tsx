@@ -68,6 +68,7 @@ export function Sidebar({
     { name: "Analytics",         href: "/analytics",       icon: TrendingUp },
     { name: "Performance Intelligence", href: "/performance", icon: LineChart },
     { name: "Adaptive Strategy", href: "/strategy",        icon: Zap        },
+    { name: "Preparation Orchestrator", href: "/prepare", icon: Compass   },
     { name: "Progress Reports",  href: "/progress",        icon: Award      },
     { name: "Contest Intelligence", href: "/contest-intelligence", icon: Trophy    },
     { name: "Collections",       href: "/collections",     icon: Library    },
