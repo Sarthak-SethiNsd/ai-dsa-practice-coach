@@ -27,10 +27,10 @@ import {
   restoreSession,
   pauseSession,
   resumeSession,
+  getCurrentProblem,
   submitOutcome,
   finishSession,
   abandonSession,
-  getCurrentProblem,
 } from "@/services/practice/practiceSessionEngine";
 import { computeSessionScore, computeSessionAnalytics } from "@/services/practice/practiceSessionScoring";
 
@@ -89,11 +89,13 @@ function PracticeContent() {
       const restored = restoreSession();
       if (restored) {
         if (restored.status === "ACTIVE" || restored.status === "PAUSED") {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- Client-side localStorage session synchronization on mount to restore active/paused/completed practice session state without breaking SSR hydration
           setActiveSession(restored);
           setView("session");
         } else if (restored.status === "EXPIRED" || restored.status === "COMPLETED") {
           const score = computeSessionScore(restored);
           const analytics = computeSessionAnalytics(restored);
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- Client-side localStorage session synchronization on mount to restore active/paused/completed practice session state without breaking SSR hydration
           setCompletedSession({ ...restored, score, analytics });
           setView("report");
         }
@@ -106,6 +108,7 @@ function PracticeContent() {
     const mode = searchParams?.get("mode") as PracticeSessionConfig["mode"] | null;
     const duration = searchParams?.get("duration");
     if (mode || duration) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Synchronizes view mode with Next.js navigation search params
       setView("adaptive");
     }
   }, [searchParams]);
@@ -223,7 +226,6 @@ function PracticeContent() {
   const handleTimeout = async () => {
     if (!activeSession) return;
     try {
-      const problem = getCurrentProblem(activeSession);
       const { session: updated } = await submitOutcome(
         activeSession,
         "TIMED_OUT",

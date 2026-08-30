@@ -22,7 +22,7 @@ export function calculateLearningVelocity(
   difficultyTrend: DifficultyProgressionTrend,
   timeTrend: TimeEfficiencyAnalysis
 ): LearningVelocity {
-  const { totalAttempts, totalSolved, independentSolves } = metrics;
+  const { totalAttempts, totalSolved } = metrics;
 
   if (totalAttempts < 3) {
     return {
@@ -125,7 +125,6 @@ export function generateStrategicRecommendations(
   const recommendations: StrategicRecommendation[] = [];
 
   const goalType = activeGoal?.type ?? "general_improvement";
-  const priorityTopics = activeGoal?.priorityTopics ?? [];
 
   // 1. Critical/High Persistent Weakness Recommendations
   const topWeakness = weaknesses[0];

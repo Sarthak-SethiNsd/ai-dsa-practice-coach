@@ -69,7 +69,7 @@ export function generateInterventionSignals(
 
   // Session duration recommendation
   let recommendedMinutes = activeGoal?.dailyMinutes || 45;
-  let sessionCount = 1;
+  const sessionCount = 1;
   if (strategyState.currentMode === "RECOVERY") {
     recommendedMinutes = Math.max(15, Math.round(recommendedMinutes * 0.5));
   } else if (strategyState.currentMode === "DIFFICULTY_ACCELERATION") {

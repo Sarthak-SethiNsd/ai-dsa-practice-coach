@@ -1,10 +1,6 @@
-"use client";
-
-import Link from "next/link";
 import {
   AdaptiveProblemRecommendation,
   RecommendationFeedbackAction,
-  RECOMMENDATION_MODE_CONFIG,
 } from "@/services/recommendations/recommendationTypes";
 import {
   ExternalLink,
@@ -13,12 +9,9 @@ import {
   SkipForward,
   X,
   BookOpen,
-  ChevronRight,
-  Star,
   Clock,
   Zap,
   AlertTriangle,
-  ArrowUpRight,
 } from "lucide-react";
 
 interface RecommendationCardProps {
@@ -51,7 +44,6 @@ export function RecommendationCard({
 }: RecommendationCardProps) {
   const priority = PRIORITY_CONFIG[rec.priority];
   const diff = DIFFICULTY_CONFIG[rec.difficulty];
-  const modeConfig = RECOMMENDATION_MODE_CONFIG[rec.mode];
 
   return (
     <div

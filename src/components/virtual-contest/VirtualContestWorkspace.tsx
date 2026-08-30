@@ -50,6 +50,7 @@ export function VirtualContestWorkspace({
   >("accepted");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Synchronizes local code editor buffer when active contest problem changes
     setCode(problemState.code);
     setSelectedLanguage(problemState.language || "javascript");
   }, [problemState.problem.id, problemState.code, problemState.language]);

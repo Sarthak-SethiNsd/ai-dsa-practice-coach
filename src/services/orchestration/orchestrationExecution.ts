@@ -1,7 +1,9 @@
 import {
   PreparationPlan,
+  PracticeSessionHandoff,
   SubsystemHandoffPayloads,
 } from "./orchestrationTypes";
+import { InterventionPracticeMode } from "@/services/intervention/interventionTypes";
 
 export function generateExecutionHandoffs(plan: PreparationPlan): SubsystemHandoffPayloads {
   const primaryAct = plan.activities[0];
@@ -11,7 +13,7 @@ export function generateExecutionHandoffs(plan: PreparationPlan): SubsystemHando
   const revisionActivities = plan.activities.filter((a) => a.activityType === "REVISION");
 
   // 1. Practice Session Handoff
-  const practiceSessionHandoff = {
+  const practiceSessionHandoff: PracticeSessionHandoff = {
     targetDurationMinutes: primaryAct ? primaryAct.estimatedMinutes : 30,
     preferredMode: (plan.strategyMode === "INTERVIEW_FOCUS"
       ? "INTERVIEW"
@@ -19,9 +21,9 @@ export function generateExecutionHandoffs(plan: PreparationPlan): SubsystemHando
       ? "REVISION"
       : plan.strategyMode === "STAGNATION_BREAK"
       ? "MIXED"
-      : "REINFORCEMENT") as any,
+      : "REINFORCEMENT") as InterventionPracticeMode,
     targetDifficulty: primaryAct?.difficulty || "Medium",
-    hintPolicy: plan.strategyMode === "INTERVIEW_FOCUS" ? "DELAYED" : ("ALLOW_ALL" as any),
+    hintPolicy: (plan.strategyMode === "INTERVIEW_FOCUS" ? "DELAYED" : "ALLOW_ALL") as PracticeSessionHandoff["hintPolicy"],
     focusSkills: primaryAct?.affectedSkills || allSkills,
     focusPatterns: primaryAct?.affectedPatterns || allPatterns,
     recommendedProblemsCount: primaryAct?.recommendedProblemsCount || 2,

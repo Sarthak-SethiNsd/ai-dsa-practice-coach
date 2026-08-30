@@ -25,7 +25,7 @@ export function AIDailyCoach({ advice }: AIDailyCoachProps) {
           <Target className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-xs text-sky-300 font-medium uppercase tracking-wide mb-1">
-              Today's priority
+              Today&apos;s priority
             </p>
             <p className="text-sm font-semibold text-white">{advice.mainDirective}</p>
           </div>

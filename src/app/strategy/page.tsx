@@ -47,6 +47,7 @@ export default function StrategyPage() {
   }, []);
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronous data loader; synchronizes strategy with Intervention engine
     loadStrategy();
   }, [loadStrategy]);
 

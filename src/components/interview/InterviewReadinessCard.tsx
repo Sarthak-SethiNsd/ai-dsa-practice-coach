@@ -1,6 +1,4 @@
-"use client";
-
-import { Award, Compass, ArrowRight, ShieldCheck, Zap } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 import { InterviewReadinessProfile } from "@/services/interview/interviewTypes";
 
 interface InterviewReadinessCardProps {
@@ -8,19 +6,10 @@ interface InterviewReadinessCardProps {
   onStartInterview: () => void;
 }
 
-const TIER_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
-  Advanced: { bg: "bg-purple-600", text: "text-purple-700", ring: "ring-purple-200" },
-  Strong: { bg: "bg-emerald-600", text: "text-emerald-700", ring: "ring-emerald-200" },
-  "Interview Ready": { bg: "bg-sky-600", text: "text-sky-700", ring: "ring-sky-200" },
-  Developing: { bg: "bg-amber-600", text: "text-amber-700", ring: "ring-amber-200" },
-  Beginner: { bg: "bg-slate-600", text: "text-slate-700", ring: "ring-slate-200" },
-};
-
 export function InterviewReadinessCard({
   profile,
   onStartInterview,
 }: InterviewReadinessCardProps) {
-  const tierStyle = TIER_COLORS[profile.tier] || TIER_COLORS.Developing;
 
   return (
     <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl">

@@ -15,7 +15,6 @@ export function generateCandidateActivities(
     strategyState,
     learningGraphNodes,
     revisionDueItems,
-    currentPerformanceState,
   } = context;
 
   const activeInterventions = strategyState?.activeInterventions ?? [];

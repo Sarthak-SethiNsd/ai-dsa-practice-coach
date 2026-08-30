@@ -38,6 +38,7 @@ export function QuickNoteModal({
 
   // Reset mode when modal opens
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Resets modal draft sub-mode upon open state transition
     if (isOpen) setActiveMode(mode);
   }, [isOpen, mode]);
 

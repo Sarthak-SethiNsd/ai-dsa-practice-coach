@@ -18,7 +18,6 @@ export function generatePreparationPlan(
     activeGoal,
     strategyState,
     currentPerformanceState,
-    revisionDueItems,
     learningGraphNodes,
   } = context;
 

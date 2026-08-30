@@ -140,8 +140,6 @@ export function scoreProblemCandidate(
   // ─── Skill Gap Score (0–25) ───────────────────────────────────────────────
   let skillGapScore = 0;
   let targetNodeId = "";
-  let targetNodeMastery = 70;
-  let targetNodeStatus = "DEVELOPING";
 
   for (const topic of candidate.topics) {
     const nodeId = mapTopicToSkillNodeId(topic);
@@ -151,8 +149,6 @@ export function scoreProblemCandidate(
       if (gap > skillGapScore) {
         skillGapScore = gap;
         targetNodeId = nodeId;
-        targetNodeMastery = node.masteryScore;
-        targetNodeStatus = node.status;
       }
     }
   }

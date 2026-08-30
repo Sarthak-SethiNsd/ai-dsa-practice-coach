@@ -35,7 +35,6 @@ function generateInterviewerResponse(
   candidateText: string
 ): string {
   const phase = session.currentPhase;
-  const currentQ = session.questions[session.currentQuestionIndex];
   const lower = candidateText.toLowerCase();
   const style = session.config.style;
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  SkillNode,
   SkillCategory,
   MasteryStatus,
   FullLearningGraphState,
@@ -46,6 +45,7 @@ export function useLearningGraph() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronously compiles full learning graph state on mount
     refreshGraph();
   }, [refreshGraph]);
 

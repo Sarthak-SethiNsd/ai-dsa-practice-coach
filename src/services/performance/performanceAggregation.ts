@@ -123,7 +123,6 @@ export async function aggregateLongitudinalData(
       else if (rec.action === "skipped" || rec.action === "dismissed") outcome = "SKIPPED";
       else if (rec.action === "solved") outcome = "SOLVED_INDEPENDENTLY";
 
-      const primaryTopic = rec.topics[0] || "General";
       const primaryPattern = rec.targetPattern || mapTopicsToPattern(rec.topics);
 
       events.push({
@@ -151,10 +150,9 @@ export async function aggregateLongitudinalData(
   // 3. Spaced Repetition (SRS)
   try {
     const srsItems = await revisionStorage.getItems();
-    srsItems.forEach((item, iIdx) => {
+    srsItems.forEach((item) => {
       item.history.forEach((hist, hIdx) => {
         const isSuccess = hist.feedback === "remembered" || hist.feedback === "easy";
-        const primaryTopic = item.topics[0] || "General";
 
         events.push({
           id: `pe_srs_${item.id}_${hIdx}`,

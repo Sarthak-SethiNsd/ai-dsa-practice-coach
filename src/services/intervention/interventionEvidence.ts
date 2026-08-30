@@ -35,7 +35,6 @@ export function extractEvidenceFromIntelligence(
   const difficultyEvidence: EvidenceFragment[] = [];
   const hardStats = difficultyTrend.byDifficulty.Hard;
   const medStats = difficultyTrend.byDifficulty.Medium;
-  const easyStats = difficultyTrend.byDifficulty.Easy;
 
   if (hardStats.attempts > 0) {
     difficultyEvidence.push({

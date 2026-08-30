@@ -188,7 +188,6 @@ export function generateAICoachDebrief(
   onTrack: ReturnType<typeof computeOnTrackAssessment>,
   readiness: ReturnType<typeof computeReadinessSummary>
 ): AIPreparationCoachDebrief {
-  const topLimiter = readiness.criticalLimiters[0] || "Consistency";
   const primaryWeakTopic = goal.priorityTopics[0] || "Dynamic Programming";
 
   // 1. Am I on track?
@@ -372,7 +371,7 @@ export function computePreparationComparison(
   if (snapshots.length === 0) return null;
 
   const now = new Date();
-  let targetDaysAgo = timeframe === "7_days" ? 7 : timeframe === "30_days" ? 30 : 9999;
+  const targetDaysAgo = timeframe === "7_days" ? 7 : timeframe === "30_days" ? 30 : 9999;
 
   let baseline = snapshots.find((s) => {
     const diffDays = Math.abs((now.getTime() - new Date(s.date).getTime()) / (1000 * 60 * 60 * 24));

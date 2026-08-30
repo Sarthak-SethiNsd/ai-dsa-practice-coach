@@ -57,6 +57,7 @@ export function usePreparationCommandCenter() {
   }, [comparisonTimeframe]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronously compiles master preparation command center state on mount
     refreshState();
   }, [refreshState]);
 

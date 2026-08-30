@@ -52,6 +52,7 @@ export default function PreparePage() {
   }, []);
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronous data loader; synchronizes plan with Orchestrator engine
     loadPlan(availableMinutes);
   }, [availableMinutes, loadPlan]);
 

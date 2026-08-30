@@ -8,7 +8,16 @@ interface PreparationTimelineProps {
 }
 
 export function PreparationTimeline({ plan }: PreparationTimelineProps) {
-  let accumulatedMinutes = 0;
+  const timelineBlocks = React.useMemo(() => {
+    const blocks: { act: (typeof plan.activities)[number]; startMin: number; endMin: number }[] = [];
+    let acc = 0;
+    for (const act of plan.activities) {
+      const startMin = acc;
+      acc += act.estimatedMinutes;
+      blocks.push({ act, startMin, endMin: acc });
+    }
+    return blocks;
+  }, [plan.activities]);
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs select-none space-y-6">
@@ -20,11 +29,7 @@ export function PreparationTimeline({ plan }: PreparationTimelineProps) {
       </div>
 
       <div className="relative pl-6 border-l-2 border-slate-100 space-y-6">
-        {plan.activities.map((act, idx) => {
-          const startMin = accumulatedMinutes;
-          accumulatedMinutes += act.estimatedMinutes;
-          const endMin = accumulatedMinutes;
-
+        {timelineBlocks.map(({ act, startMin, endMin }, idx) => {
           return (
             <div key={act.activityId} className="relative group">
               {/* Timeline marker */}

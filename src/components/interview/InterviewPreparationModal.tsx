@@ -104,7 +104,7 @@ export function InterviewPreparationModal({
             onClick={onConfirmStart}
             className="px-6 py-2.5 rounded-xl bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 transition-colors shadow-sm flex items-center gap-2"
           >
-            <span>I'm Ready — Start Timer</span>
+            <span>I&apos;m Ready — Start Timer</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

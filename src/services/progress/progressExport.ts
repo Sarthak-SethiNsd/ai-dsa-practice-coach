@@ -342,7 +342,11 @@ export async function exportSnapshotCardPNG(card: ProgressSnapshotCardData): Pro
     const x = 50 + idx * (boxW + gap);
     // Card background
     ctx.fillStyle = "rgba(30, 41, 59, 0.7)";
-    ctx.roundRect ? ctx.roundRect(x, boxY, boxW, boxH, 16) : ctx.fillRect(x, boxY, boxW, boxH);
+    if (ctx.roundRect) {
+      ctx.roundRect(x, boxY, boxW, boxH, 16);
+    } else {
+      ctx.fillRect(x, boxY, boxW, boxH);
+    }
     ctx.fill();
     ctx.strokeStyle = "rgba(148, 163, 184, 0.2)";
     ctx.lineWidth = 1.5;

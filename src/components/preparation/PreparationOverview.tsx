@@ -66,7 +66,6 @@ export function PreparationOverview({
   const badge = ON_TRACK_BADGES[onTrack.status] || ON_TRACK_BADGES.ON_TRACK;
 
   const currentPhase = roadmap.phases.find((p) => p.isCurrent) || roadmap.phases[0];
-  const nextMilestone = milestones.find((m) => !m.isCompleted) || milestones[0];
   const criticalRisk = risks.find((r) => r.severity === "critical" || r.severity === "high");
 
   return (
@@ -194,7 +193,7 @@ export function PreparationOverview({
           {/* Quick Time Budget Switcher */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800 text-xs">
             <span className="text-slate-400 font-semibold">
-              Adjust Today's Time Budget:
+              Adjust Today&apos;s Time Budget:
             </span>
             <div className="flex flex-wrap items-center gap-1.5">
               {TIME_PRESETS.map((m) => (
@@ -256,7 +255,7 @@ export function PreparationOverview({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                Today's Highest-Impact Priority Actions
+                Today&apos;s Highest-Impact Priority Actions
               </h3>
               <span className="text-xs text-slate-500">
                 Strategically sequenced for your active {activeGoal.name}

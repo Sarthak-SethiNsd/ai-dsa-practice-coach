@@ -93,8 +93,10 @@ export function ExportReportModal({
 
             {/* Option 2: PNG */}
             <div
-              onClick={handlePNG}
-              className="p-4 rounded-2xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 transition-all cursor-pointer flex items-start gap-3.5 group"
+              onClick={downloadingPNG ? undefined : handlePNG}
+              className={`p-4 rounded-2xl border border-slate-200 hover:border-sky-300 hover:bg-sky-50/40 transition-all cursor-pointer flex items-start gap-3.5 group ${
+                downloadingPNG ? "opacity-60 cursor-wait pointer-events-none" : ""
+              }`}
             >
               <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
                 <ImageIcon className="w-5 h-5" />

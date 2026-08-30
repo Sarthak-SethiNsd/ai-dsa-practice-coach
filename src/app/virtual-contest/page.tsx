@@ -37,7 +37,6 @@ import {
 export default function VirtualContestPage() {
   const {
     mode,
-    setMode,
     config,
     updateConfig,
     session,

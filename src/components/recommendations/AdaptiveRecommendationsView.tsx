@@ -118,7 +118,7 @@ export function AdaptiveRecommendationsView({
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-sky-400" />
-            <span>Today's Priority Queue ({filteredRecommendations.length})</span>
+            <span>Today&apos;s Priority Queue ({filteredRecommendations.length})</span>
           </button>
 
           <button

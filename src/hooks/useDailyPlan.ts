@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   DailyPlan,
-  DailyAction,
   AIDailyCoachAdvice,
   TomorrowPreviewData,
   PlanHistoryRecord,
@@ -154,6 +153,7 @@ export function useDailyPlan(): UseDailyPlanReturn {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronously initializes daily plan and loads stored calendar history on mount
     init();
   }, [init]);
 

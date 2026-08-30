@@ -2,18 +2,16 @@ import test from "node:test";
 import assert from "node:assert";
 import {
   PreparationContext,
-  PreparationPlan,
 } from "../orchestrationTypes";
 import { generateCandidateActivities } from "../orchestrationCandidates";
 import { resolveCandidatePrecedence } from "../orchestrationConflictResolver";
-import { evaluateActivityConstraints } from "../orchestrationConstraints";
 import { generatePreparationPlan } from "../orchestrationPlanner";
 import { generateExecutionHandoffs } from "../orchestrationExecution";
 import { calculateActivityPriority } from "../orchestrationPrioritization";
 import { PreparationGoal } from "@/services/preparation/preparationTypes";
 import { SkillNode } from "@/services/learningGraph/learningGraphTypes";
 import { RevisionItem } from "@/services/revision/revisionTypes";
-import { FullPerformanceIntelligence } from "@/services/performance/performanceTypes";
+import { FullPerformanceIntelligence, PerformanceMetricTrend } from "@/services/performance/performanceTypes";
 import { AdaptiveStrategyState } from "@/services/intervention/interventionTypes";
 
 // ─── Test Fixture Generators ──────────────────────────────────────────────────
@@ -84,6 +82,19 @@ function createMockRevisionItem(overrides: Partial<RevisionItem> = {}): Revision
   };
 }
 
+function createMockMetricTrend(val: number): PerformanceMetricTrend {
+  return {
+    currentValue: val,
+    previousValue: val,
+    delta: 0,
+    percentageChange: 0,
+    direction: "STABLE",
+    confidence: "HIGH",
+    sampleSize: 10,
+    explanation: "Sample explanation",
+  };
+}
+
 function createMockContext(overrides: Partial<PreparationContext> = {}): PreparationContext {
   const mockGoal = createMockGoal();
   const mockNode = createMockSkillNode();
@@ -115,16 +126,16 @@ function createMockContext(overrides: Partial<PreparationContext> = {}): Prepara
     metrics: {
       totalAttempts: 15,
       independentSolves: 10,
-      solveRate: { currentValue: 80 } as any,
-      independentSolveRate: { currentValue: 66 } as any,
-      hintAssistedRate: { currentValue: 13 } as any,
-      failureRate: { currentValue: 20 } as any,
-      timeoutRate: { currentValue: 0 } as any,
-      skipRate: { currentValue: 0 } as any,
-      averageSolveTimeSeconds: { currentValue: 1200 } as any,
-      medianSolveTimeSeconds: { currentValue: 1100 } as any,
-      timeEfficiencyScore: { currentValue: 75 } as any,
-      sessionCompletionRate: { currentValue: 90 } as any,
+      solveRate: createMockMetricTrend(80),
+      independentSolveRate: createMockMetricTrend(66),
+      hintAssistedRate: createMockMetricTrend(13),
+      failureRate: createMockMetricTrend(20),
+      timeoutRate: createMockMetricTrend(0),
+      skipRate: createMockMetricTrend(0),
+      averageSolveTimeSeconds: createMockMetricTrend(1200),
+      medianSolveTimeSeconds: createMockMetricTrend(1100),
+      timeEfficiencyScore: createMockMetricTrend(75),
+      sessionCompletionRate: createMockMetricTrend(90),
       sessionCount: 8,
       activeGoalAlignmentPct: 80,
       totalPracticeMinutes: 300,
@@ -141,9 +152,9 @@ function createMockContext(overrides: Partial<PreparationContext> = {}): Prepara
     patternTrends: [],
     difficultyTrend: {
       byDifficulty: {
-        Easy: {} as any,
-        Medium: {} as any,
-        Hard: {} as any,
+        Easy: { difficulty: "Easy", attempts: 5, solvedCount: 5, independentSolves: 5, solveRate: 100, independentSolveRate: 100, hintCount: 0, averageSolveTimeSeconds: 600 },
+        Medium: { difficulty: "Medium", attempts: 8, solvedCount: 6, independentSolves: 5, solveRate: 75, independentSolveRate: 62, hintCount: 1, averageSolveTimeSeconds: 1200 },
+        Hard: { difficulty: "Hard", attempts: 2, solvedCount: 1, independentSolves: 0, solveRate: 50, independentSolveRate: 0, hintCount: 1, averageSolveTimeSeconds: 2400 },
       },
       pacing: "APPROPRIATE",
       transitionGap: { hasEasyToMediumGap: false, hasMediumToHardGap: false, gapDescription: "" },
@@ -154,7 +165,11 @@ function createMockContext(overrides: Partial<PreparationContext> = {}): Prepara
       overallTrend: "STABLE",
       overallMedianSolveTimeSeconds: 1100,
       overallAverageSolveTimeSeconds: 1200,
-      byDifficulty: {} as any,
+      byDifficulty: {
+        Easy: { medianSeconds: 600, avgSeconds: 600 },
+        Medium: { medianSeconds: 1200, avgSeconds: 1200 },
+        Hard: { medianSeconds: 2400, avgSeconds: 2400 },
+      },
       canSolveRate: 80,
       canSolveEfficientlyRate: 70,
       efficiencyGapPct: 10,
@@ -166,13 +181,24 @@ function createMockContext(overrides: Partial<PreparationContext> = {}): Prepara
     learningVelocity: {
       overallVelocityScore: 70,
       tier: "Solid Progress",
-      components: {} as any,
+      components: {
+        masteryVelocity: { name: "Mastery", score: 70, weight: 0.35, contribution: 24.5, explanation: "Good" },
+        difficultyVelocity: { name: "Difficulty", score: 70, weight: 0.25, contribution: 17.5, explanation: "Good" },
+        independenceVelocity: { name: "Independence", score: 70, weight: 0.25, contribution: 17.5, explanation: "Good" },
+        timeEfficiencyVelocity: { name: "Time Efficiency", score: 70, weight: 0.15, contribution: 10.5, explanation: "Good" },
+      },
       explanation: "Good",
       velocityTrend: "IMPROVING",
     },
     strategicRecommendations: [],
     timeline: [],
-    feedbackSignals: {} as any,
+    feedbackSignals: {
+      recommendationSignals: { boostWeaknessSkills: [], demoteOverexposedPatterns: [], targetDifficulty: "Medium" },
+      practiceSessionSignals: { suggestedMode: "LEARNING", targetPrerequisiteBridges: [], suggestedDurationMinutes: 30 },
+      learningGraphSignals: { bottleneckPriorities: [], decayRisks: [] },
+      srsSignals: { urgentTopicRevisionIds: [] },
+      preparationSignals: { velocityAlignment: "ON_TRACK", gapAdjustments: [] },
+    },
     diagnosisSummary: {
       headline: "Steady progress",
       subheadline: "Balanced learning",
@@ -323,7 +349,15 @@ test("Adaptive Preparation Orchestrator - 35 Test Scenarios", async (t) => {
             objective: "Bridge BFS prerequisites",
             priority: "CRITICAL",
             priorityScore: 95,
-            priorityBreakdown: {} as any,
+            priorityBreakdown: {
+              impact: 8,
+              evidenceStrength: 8,
+              goalRelevance: 8,
+              urgency: 8,
+              rawScore: 4096,
+              normalizedScore: 95,
+              priority: "CRITICAL",
+            },
             targetDurationSessions: 3,
             completedSessions: 0,
             affectedSkills: ["Graphs"],
@@ -339,7 +373,13 @@ test("Adaptive Preparation Orchestrator - 35 Test Scenarios", async (t) => {
             startDate: new Date().toISOString(),
             reviewDate: new Date().toISOString(),
             cooldownDays: 5,
-            evidenceChain: {} as any,
+            evidenceChain: {
+              evidence: "Weakness in BFS",
+              diagnosis: "Bridge prerequisites",
+              decision: "FOUNDATION_REPAIR",
+              action: "Complete BFS drills",
+              successCriteria: "75% unassisted",
+            },
           },
         ],
       },
@@ -380,7 +420,15 @@ test("Adaptive Preparation Orchestrator - 35 Test Scenarios", async (t) => {
             objective: "Alleviate practice fatigue",
             priority: "CRITICAL",
             priorityScore: 95,
-            priorityBreakdown: {} as any,
+            priorityBreakdown: {
+              impact: 8,
+              evidenceStrength: 8,
+              goalRelevance: 8,
+              urgency: 8,
+              rawScore: 4096,
+              normalizedScore: 95,
+              priority: "CRITICAL",
+            },
             targetDurationSessions: 2,
             completedSessions: 0,
             affectedSkills: [],
@@ -396,7 +444,13 @@ test("Adaptive Preparation Orchestrator - 35 Test Scenarios", async (t) => {
             startDate: new Date().toISOString(),
             reviewDate: new Date().toISOString(),
             cooldownDays: 5,
-            evidenceChain: {} as any,
+            evidenceChain: {
+              evidence: "Consecutive long sessions",
+              diagnosis: "Alleviate fatigue",
+              decision: "PRACTICE_RECOVERY",
+              action: "Short recovery session",
+              successCriteria: "Complete 1-2 light review problems",
+            },
           },
         ],
       },

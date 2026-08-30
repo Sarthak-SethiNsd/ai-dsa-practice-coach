@@ -4,11 +4,9 @@ import {
   RecommendationMode,
   AdaptiveProblemRecommendation,
 } from "./recommendationTypes";
-import { Platform, Difficulty } from "@/services/types";
 
 const HISTORY_KEY = "dsa_adaptive_rec_history";
 const DISMISSED_KEY = "dsa_adaptive_rec_dismissed";
-const COOLDOWN_KEY = "dsa_adaptive_rec_cooldown";
 const MAX_HISTORY = 200;
 
 // ─── Storage helpers ─────────────────────────────────────────────────────────

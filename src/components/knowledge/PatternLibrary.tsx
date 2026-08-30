@@ -28,7 +28,7 @@ export function PatternLibrary({ patterns, onSelectPattern }: PatternLibraryProp
         </div>
         <h3 className="text-base font-bold text-slate-800 mb-1">No patterns yet</h3>
         <p className="text-sm text-slate-500 max-w-xs">
-          Tag problems with "Pattern" and assign a pattern name to start tracking your pattern mastery here.
+          Tag problems with &quot;Pattern&quot; and assign a pattern name to start tracking your pattern mastery here.
         </p>
       </div>
     );

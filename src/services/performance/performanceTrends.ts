@@ -23,7 +23,7 @@ export function computeMetricTrend({
   deltaThreshold = 3,
   metricName,
   unit = "%",
-  isPercentage = true,
+  isPercentage: _isPercentage = true,
 }: ComputeTrendOptions): PerformanceMetricTrend {
   // Insufficient data guard: strictly require at least 3 attempts
   if (sampleSize < 3) {

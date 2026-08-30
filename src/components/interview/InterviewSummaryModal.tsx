@@ -58,7 +58,7 @@ export function InterviewSummaryModal({
                 <span className="text-xs font-semibold uppercase tracking-wider text-sky-200">
                   Mock Interview Evaluation
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-sky-800">
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${tierStyle.bg} ${tierStyle.text} ${tierStyle.border}`}>
                   {report.readinessTier}
                 </span>
               </div>

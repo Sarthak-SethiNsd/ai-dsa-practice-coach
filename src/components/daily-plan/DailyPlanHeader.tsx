@@ -29,7 +29,7 @@ export function DailyPlanHeader({ plan, onReplan, isReplanning }: DailyPlanHeade
             <Compass className="w-5 h-5 text-sky-200 shrink-0" />
             <span className="text-sky-100 text-sm font-medium">{today}</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight mb-1">Today's Action Plan</h1>
+          <h1 className="text-xl font-bold tracking-tight mb-1">Today&apos;s Action Plan</h1>
           <p className="text-sky-100 text-sm line-clamp-2">{plan.mainFocus}</p>
         </div>
 

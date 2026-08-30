@@ -3,11 +3,9 @@ import assert from "node:assert";
 import {
   FullPerformanceIntelligence,
   PerformanceMetricsSnapshot,
-  SkillPerformanceTrend,
-  PatternPerformanceTrend,
   DifficultyProgressionTrend,
   TimeEfficiencyAnalysis,
-  PersistentWeakness,
+  TrendDirection,
 } from "@/services/performance/performanceTypes";
 import { PreparationGoal } from "@/services/preparation/preparationTypes";
 import { runDiagnosisPipeline } from "../interventionDiagnosis";
@@ -20,7 +18,7 @@ import { getGoalWeightMultiplier, isInterventionInCooldown } from "../interventi
 
 // ─── Test Fixture Generator ───────────────────────────────────────────────────
 
-function createMockMetricTrend(currentValue: number, direction: any = "STABLE", sampleSize = 10) {
+function createMockMetricTrend(currentValue: number, direction: TrendDirection = "STABLE", sampleSize = 10) {
   return {
     currentValue,
     previousValue: currentValue,
@@ -138,13 +136,40 @@ function createMockIntelligence(overrides: Partial<FullPerformanceIntelligence> 
     learningVelocity: {
       overallVelocityScore: 70,
       tier: "Solid Progress",
-      components: {} as any,
+      components: {
+        masteryVelocity: { name: "Mastery", score: 70, weight: 0.35, contribution: 24.5, explanation: "Good" },
+        difficultyVelocity: { name: "Difficulty", score: 70, weight: 0.25, contribution: 17.5, explanation: "Good" },
+        independenceVelocity: { name: "Independence", score: 70, weight: 0.25, contribution: 17.5, explanation: "Good" },
+        timeEfficiencyVelocity: { name: "Time Efficiency", score: 70, weight: 0.15, contribution: 10.5, explanation: "Good" },
+      },
       explanation: "Good progress",
       velocityTrend: "IMPROVING",
     },
     strategicRecommendations: [],
     timeline: [],
-    feedbackSignals: {} as any,
+    feedbackSignals: {
+      recommendationSignals: {
+        boostWeaknessSkills: [],
+        demoteOverexposedPatterns: [],
+        targetDifficulty: "Medium",
+      },
+      practiceSessionSignals: {
+        suggestedMode: "LEARNING",
+        targetPrerequisiteBridges: [],
+        suggestedDurationMinutes: 30,
+      },
+      learningGraphSignals: {
+        bottleneckPriorities: [],
+        decayRisks: [],
+      },
+      srsSignals: {
+        urgentTopicRevisionIds: [],
+      },
+      preparationSignals: {
+        velocityAlignment: "ON_TRACK",
+        gapAdjustments: [],
+      },
+    },
     diagnosisSummary: {
       headline: "Steady progress",
       subheadline: "Balanced learning",

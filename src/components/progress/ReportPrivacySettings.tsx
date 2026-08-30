@@ -22,6 +22,7 @@ export function ReportPrivacySettingsModal({
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Synchronizes local editable draft settings with parent settings prop
     setLocalSettings(settings);
   }, [settings, isOpen]);
 

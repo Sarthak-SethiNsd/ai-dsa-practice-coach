@@ -96,6 +96,7 @@ export function PreparationGoalModal({
 
   useEffect(() => {
     if (editingGoal) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Populates editable local form state from editingGoal prop on modal open
       setName(editingGoal.name);
       setType(editingGoal.type);
       setTargetDate(editingGoal.targetDate);

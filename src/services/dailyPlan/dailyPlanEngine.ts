@@ -538,13 +538,12 @@ export async function replanDailyPlan(
 export async function getTomorrowPreview(): Promise<TomorrowPreviewData> {
   const tomorrow = tomorrowStr();
 
-  const [revisionItems, roadmap, completedTasks, contestGoals, allContestEntries] =
+  const [revisionItems, roadmap, completedTasks, contestGoals] =
     await Promise.all([
       revisionStorage.getItems(),
       roadmapStorage.getRoadmap(),
       roadmapStorage.getCompletedTasks(),
       contestStorage.getGoals(),
-      contestStorage.getEntries(),
     ]);
 
   const dueTomorrow = revisionItems.filter(

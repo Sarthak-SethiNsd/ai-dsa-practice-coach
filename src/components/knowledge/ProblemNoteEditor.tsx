@@ -59,7 +59,7 @@ export function ProblemNoteEditor({
   const [topic, setTopic] = React.useState(initialNote?.topic ?? "");
   const [difficulty, setDifficulty] = React.useState<Difficulty>(initialNote?.difficulty ?? "Medium");
   const [problemUrl, setProblemUrl] = React.useState(initialNote?.problemUrl ?? "");
-  const [platformProblemId, setPlatformProblemId] = React.useState(initialNote?.platformProblemId ?? "");
+  const [platformProblemId] = React.useState(initialNote?.platformProblemId ?? "");
 
   // Note content
   const [personalExplanation, setPersonalExplanation] = React.useState(initialNote?.personalExplanation ?? "");

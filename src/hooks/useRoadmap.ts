@@ -151,7 +151,7 @@ export function useRoadmap(): UseRoadmapReturn {
       if (!prev) return prev;
       return hydrateRoadmap(prev, new Set([...completedTaskIds, taskId]));
     });
-  }, [completedTaskIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [completedTaskIds]);
 
   // ─── Mark task as incomplete ──────────────────────────────────────────────
   const markTaskIncomplete = React.useCallback(async (taskId: string) => {
@@ -169,7 +169,7 @@ export function useRoadmap(): UseRoadmapReturn {
       nextIds.delete(taskId);
       return hydrateRoadmap(prev, nextIds);
     });
-  }, [completedTaskIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [completedTaskIds]);
 
   // ─── Delete roadmap ───────────────────────────────────────────────────────
   const deleteRoadmap = React.useCallback(async () => {

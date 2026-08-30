@@ -71,6 +71,7 @@ export function useAdaptiveRecommendations() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronously compiles recommendations and loads history on mode change
     loadRecommendations(activeMode);
     loadHistory();
   }, [activeMode, loadRecommendations, loadHistory]);

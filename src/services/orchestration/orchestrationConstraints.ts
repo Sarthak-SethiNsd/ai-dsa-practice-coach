@@ -19,7 +19,7 @@ export function evaluateActivityConstraints(
   const deferredActivities: DeferredActivity[] = [];
   const appliedConstraints: string[] = [];
 
-  const { strategyState, learningGraphNodes } = context;
+  const { strategyState } = context;
   const currentMode = strategyState?.currentMode ?? "BALANCED";
   const deprioritizedSkills = strategyState?.deprioritizedSkills ?? [];
 

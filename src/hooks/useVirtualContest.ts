@@ -97,8 +97,29 @@ export function useVirtualContest() {
     }
   }, [analyticsTimeframe, analyticsPlatform]);
 
+  // ─── Finish Contest ─────────────────────────────────────────────────────────
+  const handleFinishContest = useCallback(
+    (activeSession?: VCSession) => {
+      const sess = activeSession || session;
+      if (!sess) return;
+
+      const ended = endSession(sess);
+      const finalReport = compileContestReport(ended);
+      syncToLearningLoop(finalReport);
+
+      setReport(finalReport);
+      setSession(null);
+      setShowPauseModal(false);
+      setShowSummaryModal(true);
+      setMode("results");
+      refreshUserData();
+    },
+    [session, refreshUserData]
+  );
+
   // ─── Initial Load & Session Recovery ─────────────────────────────────────────
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Restores interrupted contest session and compiles user readiness on mount
     refreshUserData();
     const interrupted = resumeInterruptedSession();
     if (interrupted && interrupted.status === "in_progress") {
@@ -138,7 +159,7 @@ export function useVirtualContest() {
         clearInterval(timerRef.current);
       }
     };
-  }, [mode, session?.isPaused, session?.status]);
+  }, [mode, session?.isPaused, session?.status, handleFinishContest]);
 
   // ─── Start Contest ──────────────────────────────────────────────────────────
   const startContest = useCallback(
@@ -227,26 +248,6 @@ export function useVirtualContest() {
     const updated = skipProblem(session, session.activeProblemIndex);
     setSession(updated);
   }, [session]);
-
-  // ─── Finish Contest ─────────────────────────────────────────────────────────
-  const handleFinishContest = useCallback(
-    (activeSession?: VCSession) => {
-      const sess = activeSession || session;
-      if (!sess) return;
-
-      const ended = endSession(sess);
-      const finalReport = compileContestReport(ended);
-      syncToLearningLoop(finalReport);
-
-      setReport(finalReport);
-      setSession(null);
-      setShowPauseModal(false);
-      setShowSummaryModal(true);
-      setMode("results");
-      refreshUserData();
-    },
-    [session, refreshUserData]
-  );
 
   // ─── Update Config Helper ───────────────────────────────────────────────────
   const updateConfig = useCallback((partial: Partial<VCConfig>) => {

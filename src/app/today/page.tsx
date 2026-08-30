@@ -110,7 +110,7 @@ export default function TodayPage() {
           {/* Full action list */}
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-700 mb-4">
-              Today's Actions
+              Today&apos;s Actions
             </h2>
             <DailyActionList
               actions={plan.actions}

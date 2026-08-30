@@ -107,6 +107,7 @@ export function useMockInterview(): UseMockInterviewReturn {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronously loads interview history and readiness profile on mount
     loadData();
   }, [loadData]);
 

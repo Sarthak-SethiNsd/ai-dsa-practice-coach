@@ -425,7 +425,7 @@ describe("Longitudinal Performance Intelligence Engine - 25 Test Scenarios", () 
     const patterns = analyzePatternCoverage(dataset);
 
     const arrayPattern = patterns.find((p) => p.patternName === "Arrays" || p.patternName === "Prefix Sums" || p.patternName === "Two Pointers");
-    assert.ok(patterns.some((p) => p.exposureStatus === "OVEREXPOSED" || p.exposurePercentage >= 35));
+    assert.ok(arrayPattern && (patterns.some((p) => p.exposureStatus === "OVEREXPOSED" || p.exposurePercentage >= 35)));
   });
 
   // Test 19: Pattern underexposure detection

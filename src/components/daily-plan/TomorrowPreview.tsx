@@ -18,7 +18,7 @@ export function TomorrowPreview({ data }: TomorrowPreviewProps) {
     <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
         <Calendar className="w-4 h-4 text-sky-500" />
-        <h2 className="text-sm font-semibold text-slate-700">Tomorrow's Preview</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Tomorrow&apos;s Preview</h2>
         {data.estimatedMinutes > 0 && (
           <span className="ml-auto text-xs text-slate-400">
             ~{data.estimatedMinutes}m estimated

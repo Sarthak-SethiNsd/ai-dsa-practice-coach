@@ -53,8 +53,6 @@ export default function LearningGraphPage() {
     setSearchQuery,
     categoryFilter,
     setCategoryFilter,
-    statusFilter,
-    setStatusFilter,
     filteredNodes,
     pathTargetId,
     setPathTargetId,
@@ -194,7 +192,7 @@ export default function LearningGraphPage() {
           {/* Category Dropdown */}
           <select
             value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as any)}
+            onChange={(e) => setCategoryFilter(e.target.value as SkillCategory | "all")}
             className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-400 cursor-pointer"
           >
             {CATEGORIES.map((c) => (

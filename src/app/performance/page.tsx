@@ -53,6 +53,7 @@ export default function PerformancePage() {
   }, []);
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronous data loader; state updates occur after engine compilation resolves
     loadData(selectedWindow);
   }, [selectedWindow, loadData]);
 
