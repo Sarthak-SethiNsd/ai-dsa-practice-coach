@@ -17,6 +17,7 @@ import { revisionStorage } from "@/services/revision/revisionStorage";
 import { roadmapStorage } from "@/services/roadmapStorage";
 import { knowledgeStorage } from "@/services/knowledge/knowledgeStorage";
 import { contestStorage } from "@/services/contest/contestStorage";
+import { ContestGoal } from "@/services/contest/contestTypes";
 import { studyStorage } from "@/services/study/studyStorage";
 import { recommendationHistoryStorage } from "@/services/recommendationHistoryStorage";
 import { questionRecommendationStorage } from "@/services/questionRecommendationStorage";
@@ -44,6 +45,32 @@ function difficultyToMinutes(difficulty?: string): number {
     case "hard":   return 40;
     default:       return 20;
   }
+}
+
+// ─── Exported Helpers (also used in tests) ────────────────────────────────────
+
+/**
+ * Returns true if any participation goal has a targetDate that is:
+ *   - strictly in the future (> referenceDate), AND
+ *   - within `withinDays` calendar days of referenceDate.
+ *
+ * Source of truth is contestGoals, not contestEntries (which records past participation).
+ * A user with zero past entries but an active upcoming goal must be detected correctly.
+ */
+export function hasUpcomingContestWithinDays(
+  goals: ContestGoal[],
+  withinDays: number,
+  referenceDate: Date = new Date()
+): boolean {
+  const deadline = new Date(referenceDate);
+  deadline.setDate(deadline.getDate() + withinDays);
+  return goals.some(
+    (g) =>
+      g.category === "participation" &&
+      g.targetDate &&
+      new Date(g.targetDate) > referenceDate &&
+      new Date(g.targetDate) <= deadline
+  );
 }
 
 // ─── Main Engine ──────────────────────────────────────────────────────────────
@@ -75,8 +102,6 @@ export async function generateDailyPlan(timeBudgetMinutes: number): Promise<Dail
     questionRecommendationStorage.getSolved(),
   ]);
 
-  const allContestEntries = await contestStorage.getEntries();
-
   // ── Compute weak topics across subsystems ──────────────────────────────────
   const latestSnapshot = snapshots[0] ?? null;
 
@@ -102,16 +127,7 @@ export async function generateDailyPlan(timeBudgetMinutes: number): Promise<Dail
   );
 
   // ── Detect upcoming contest ─────────────────────────────────────────────────
-  const inThreeDays = new Date();
-  inThreeDays.setDate(inThreeDays.getDate() + 3);
-  const upcomingContest = allContestEntries.find((e) => {
-    // Check contest goals with target date within 3 days
-    const contestGoal = contestGoals.find(
-      (g) => g.category === "participation" && g.targetDate
-    );
-    return contestGoal && new Date(contestGoal.targetDate) <= inThreeDays;
-  });
-  const hasContestWithin3Days = !!upcomingContest;
+  const hasContestWithin3Days = hasUpcomingContestWithinDays(contestGoals, 3);
 
   // ── Detect recent mistakes (last 48h) ──────────────────────────────────────
   const fortyEightHoursAgo = new Date();

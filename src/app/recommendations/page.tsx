@@ -114,6 +114,7 @@ export default function RecommendationsPage() {
       <div className="pb-12">
         <AdaptiveRecommendationsView
           renderReadinessAnalytics={renderReadinessAnalytics}
+          isReadyToLoad={!loading}
         />
       </div>
 

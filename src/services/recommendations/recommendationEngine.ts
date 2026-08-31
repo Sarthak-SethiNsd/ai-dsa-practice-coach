@@ -45,6 +45,12 @@ async function fetchCandidatePool(mode: RecommendationMode): Promise<ProblemCand
     title: p.title,
     url: p.url ?? (p.platform === "leetcode"
       ? `https://leetcode.com/problems/${p.title.toLowerCase().replace(/\s+/g, "-")}/`
+      // Codeforces: CodeforcesService.getProblems() always sets p.url (using p.id as fallback
+      // in codeforcesService.ts), so this branch is unreachable for Codeforces problems.
+      // The Problem type carries no separate contestId/index fields from which a specific
+      // /problemset/problem/{id}/{index} URL could be constructed here.
+      // If this fallback is ever reached (e.g. a future data source without url), it falls
+      // back to the Codeforces problem set root — safe but non-specific.
       : `https://codeforces.com/problemset`),
     difficulty: p.difficulty,
     topics: p.topics,

@@ -21,12 +21,20 @@ import {
 
 interface AdaptiveRecommendationsViewProps {
   renderReadinessAnalytics?: () => React.ReactNode;
+  /**
+   * When false, the adaptive recommendation engine initialization is deferred.
+   * Defaults to true so this component works standalone (e.g. outside /recommendations/page.tsx).
+   * Pass isReadyToLoad={!loading} from the parent page to sequence loading after the
+   * legacy readiness engine has completed its initial fetch cycle.
+   */
+  isReadyToLoad?: boolean;
 }
 
 type TabType = "queue" | "revision" | "history" | "coach" | "analytics";
 
 export function AdaptiveRecommendationsView({
   renderReadinessAnalytics,
+  isReadyToLoad = true,
 }: AdaptiveRecommendationsViewProps) {
   const {
     filteredRecommendations,
@@ -47,7 +55,7 @@ export function AdaptiveRecommendationsView({
     history,
     analytics,
     refresh,
-  } = useAdaptiveRecommendations();
+  } = useAdaptiveRecommendations(isReadyToLoad);
 
   const [activeTab, setActiveTab] = useState<TabType>("queue");
 

@@ -32,7 +32,7 @@ const DEFAULT_FILTERS: RecommendationFilterOptions = {
   searchQuery: "",
 };
 
-export function useAdaptiveRecommendations() {
+export function useAdaptiveRecommendations(isReadyToLoad = true) {
   const [recommendations, setRecommendations] = useState<AdaptiveProblemRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,10 +71,11 @@ export function useAdaptiveRecommendations() {
   }, []);
 
   useEffect(() => {
+    if (!isReadyToLoad) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Asynchronously compiles recommendations and loads history on mode change
     loadRecommendations(activeMode);
     loadHistory();
-  }, [activeMode, loadRecommendations, loadHistory]);
+  }, [activeMode, isReadyToLoad, loadRecommendations, loadHistory]);
 
   // ─── Mode Switcher ─────────────────────────────────────────────────────────
   const switchMode = useCallback((mode: RecommendationMode) => {
