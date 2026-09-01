@@ -1,4 +1,4 @@
-import { RevisionItem, RevisionNotification } from "./revisionTypes";
+import { RevisionItem, RevisionNotification, RevisionStatus } from "./revisionTypes";
 
 const REVISION_ITEMS_KEY = "dsa_spaced_repetition_items";
 const REVISION_NOTIFICATIONS_KEY = "dsa_spaced_repetition_notifications";
@@ -206,9 +206,40 @@ export interface RevisionStorageProvider {
   markNotificationRead(id: string): Promise<void>;
 }
 
+// ─── Status Normalization Helper ─────────────────────────────────────────────
+/**
+ * Normalizes a revision item's status relative to a reference date.
+ * - 'completed' and 'skipped' statuses are immutable past outcomes and preserved.
+ * - Non-completed items derive status dynamically:
+ *   - nextDueDate < todayStr -> 'overdue'
+ *   - nextDueDate === todayStr -> 'due'
+ *   - nextDueDate > todayStr -> 'upcoming'
+ */
+export function normalizeRevisionItemStatus(
+  item: RevisionItem,
+  todayStr: string = new Date().toISOString().split("T")[0]
+): RevisionItem {
+  if (item.status === "completed" || item.status === "skipped") {
+    return item;
+  }
+
+  let status: RevisionStatus = item.status;
+  if (item.nextDueDate < todayStr) {
+    status = "overdue";
+  } else if (item.nextDueDate === todayStr) {
+    status = "due";
+  } else {
+    status = "upcoming";
+  }
+
+  return { ...item, status };
+}
+
+// ─── LocalStorage Implementation ──────────────────────────────────────────────
+
 export class LocalStorageRevisionStorage implements RevisionStorageProvider {
   private isClient(): boolean {
-    return typeof window !== "undefined";
+    return typeof window !== "undefined" || typeof localStorage !== "undefined";
   }
 
   private loadRawItems(): RevisionItem[] {
@@ -230,13 +261,15 @@ export class LocalStorageRevisionStorage implements RevisionStorageProvider {
   }
 
   async getItems(): Promise<RevisionItem[]> {
-    const items = this.loadRawItems();
-    if (items.length === 0) {
-      const seed = buildSeedRevisionItems();
-      this.saveRawItems(seed);
-      return seed;
+    const rawItems = this.loadRawItems();
+    const list = rawItems.length === 0 ? buildSeedRevisionItems() : rawItems;
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    if (rawItems.length === 0) {
+      this.saveRawItems(list);
     }
-    return items;
+
+    return list.map((item) => normalizeRevisionItemStatus(item, todayStr));
   }
 
   async saveItems(items: RevisionItem[]): Promise<void> {

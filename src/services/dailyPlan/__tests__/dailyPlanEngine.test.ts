@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Regression tests for the upcoming-contest detection fix in dailyPlanEngine.
  *
  * These tests cover the five required behavioral cases for Fix #1:
@@ -15,8 +15,30 @@
 import assert from "node:assert/strict";
 import { test, describe } from "node:test";
 
-import { hasUpcomingContestWithinDays } from "../dailyPlanEngine";
+import { hasUpcomingContestWithinDays, replanDailyPlan } from "../dailyPlanEngine";
 import { ContestGoal } from "@/services/contest/contestTypes";
+import { DailyPlan, DailyAction } from "../dailyPlanTypes";
+
+// Mock localStorage for Node environment tests
+class LocalStorageMock {
+  private store: Record<string, string> = {};
+  getItem(key: string): string | null {
+    return this.store[key] ?? null;
+  }
+  setItem(key: string, value: string): void {
+    this.store[key] = value;
+  }
+  removeItem(key: string): void {
+    delete this.store[key];
+  }
+  clear(): void {
+    this.store = {};
+  }
+}
+
+if (typeof globalThis.localStorage === "undefined") {
+  (globalThis as unknown as { localStorage: LocalStorageMock }).localStorage = new LocalStorageMock();
+}
 
 // --- Fixture builders ---------------------------------------------------------
 
@@ -113,5 +135,121 @@ describe("hasUpcomingContestWithinDays -- Fix #1 regression", () => {
     const today = REF.toISOString().split("T")[0];
     const goals: ContestGoal[] = [makeParticipationGoal(today)];
     assert.strictEqual(hasUpcomingContestWithinDays(goals, 3, REF), false);
+  });
+});
+
+describe("replanDailyPlan -- Fix #2 regression", () => {
+  function makeMockAction(overrides: Partial<DailyAction> = {}): DailyAction {
+    return {
+      id: `action_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      actionType: "REVISION",
+      title: "Revise: Two Sum",
+      description: "SRS item due",
+      estimatedMinutes: 15,
+      priority: "HIGH",
+      priorityScore: 75,
+      reason: "Urgent SRS revision",
+      expectedOutcome: "Retention",
+      goalAlignment: "High",
+      status: "pending",
+      sourceRef: { type: "revision", id: "rev_test_1" },
+      ...overrides,
+    };
+  }
+
+  function makeMockPlan(actions: DailyAction[], timeBudgetMinutes = 60): DailyPlan {
+    const today = new Date().toISOString().split("T")[0];
+    const completedCount = actions.filter((a) => a.status === "completed").length;
+    const completedMinutes = actions
+      .filter((a) => a.status === "completed")
+      .reduce((s, a) => s + a.estimatedMinutes, 0);
+
+    return {
+      id: `plan_${today}_123`,
+      date: today,
+      timeBudgetMinutes,
+      totalPlannedMinutes: actions.reduce((s, a) => s + a.estimatedMinutes, 0),
+      completedMinutes,
+      actions,
+      criticalCount: actions.filter((a) => a.priority === "CRITICAL").length,
+      completedCount,
+      skippedCount: 0,
+      streak: 3,
+      mainFocus: "Balanced Practice",
+      status: "in_progress",
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  test("Case 1: completed task missing from freshPlan is retained in replanned plan", async () => {
+    const completedAction = makeMockAction({
+      id: "action_completed_custom",
+      title: "Completed Custom Problem",
+      estimatedMinutes: 25,
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      sourceRef: { type: "knowledge", id: "custom_completed_note_id" },
+    });
+    const pendingAction = makeMockAction({
+      id: "action_pending_1",
+      title: "Pending Item",
+      status: "pending",
+      sourceRef: { type: "revision", id: "rev_test_pending" },
+    });
+
+    const currentPlan = makeMockPlan([completedAction, pendingAction], 60);
+
+    const replanned = await replanDailyPlan(currentPlan, 30);
+
+    // The completed custom action must still be present
+    const foundCompleted = replanned.actions.find(
+      (a) => a.sourceRef?.id === "custom_completed_note_id" || a.id === "action_completed_custom"
+    );
+    assert.ok(foundCompleted, "Completed task must be preserved during replan");
+    assert.strictEqual(foundCompleted?.status, "completed");
+    assert.ok(replanned.completedCount >= 1, "completedCount must reflect retained completed action");
+    assert.ok(replanned.completedMinutes >= 25, "completedMinutes must include retained completed action");
+  });
+
+  test("Case 2: completed task present in freshPlan is not duplicated", async () => {
+    const completedAction = makeMockAction({
+      id: "action_seed_1",
+      title: "Revise: Two Sum",
+      status: "completed",
+      sourceRef: { type: "revision", id: "rev_seed_1" },
+    });
+
+    const currentPlan = makeMockPlan([completedAction], 60);
+    const replanned = await replanDailyPlan(currentPlan, 60);
+
+    const matches = replanned.actions.filter(
+      (a) => a.sourceRef?.id === "rev_seed_1"
+    );
+    assert.strictEqual(matches.length, 1, "Matching action must not be duplicated");
+    assert.strictEqual(matches[0].status, "completed", "Status must remain completed");
+  });
+
+  test("Case 3: replanning with no completed actions generates fresh plan normally", async () => {
+    const pendingAction = makeMockAction({
+      status: "pending",
+      sourceRef: { type: "revision", id: "rev_test_pending_2" },
+    });
+
+    const currentPlan = makeMockPlan([pendingAction], 60);
+    const replanned = await replanDailyPlan(currentPlan, 60);
+
+    assert.strictEqual(replanned.completedCount, 0);
+    assert.strictEqual(replanned.completedMinutes, 0);
+    assert.ok(replanned.actions.length > 0, "Fresh actions should be generated");
+    assert.ok(replanned.actions.every((a) => a.status === "pending"));
+  });
+
+  test("Case 4: plan id is preserved after replanning", async () => {
+    const currentPlan = makeMockPlan([], 60);
+    const replanned = await replanDailyPlan(currentPlan, 45);
+
+    assert.strictEqual(replanned.id, currentPlan.id, "Plan ID must remain identical for the day");
+    assert.strictEqual(replanned.timeBudgetMinutes, 45, "Time budget must update to new budget");
+    assert.ok(replanned.replannedAt !== undefined, "replannedAt timestamp must be set");
   });
 });

@@ -517,20 +517,38 @@ export async function replanDailyPlan(
   const freshPlan = await generateDailyPlan(budget);
 
   // Preserve completed action statuses from the current plan
-  const completedIds = new Set(
-    currentPlan.actions
-      .filter((a) => a.status === "completed")
-      .map((a) => a.sourceRef?.id)
-      .filter(Boolean)
+  const completedActionsFromCurrent = currentPlan.actions.filter(
+    (a) => a.status === "completed"
+  );
+  const completedSourceIds = new Set(
+    completedActionsFromCurrent.map((a) => a.sourceRef?.id).filter(Boolean)
+  );
+  const completedActionIds = new Set(
+    completedActionsFromCurrent.map((a) => a.id)
   );
 
-  const mergedActions = freshPlan.actions.map((a) => {
+  const updatedFreshActions = freshPlan.actions.map((a) => {
     const sourceId = a.sourceRef?.id;
-    if (sourceId && completedIds.has(sourceId)) {
+    if ((sourceId && completedSourceIds.has(sourceId)) || completedActionIds.has(a.id)) {
       return { ...a, status: "completed" as const };
     }
     return a;
   });
+
+  const freshSourceIds = new Set(
+    updatedFreshActions.map((a) => a.sourceRef?.id).filter(Boolean)
+  );
+  const freshActionIds = new Set(
+    updatedFreshActions.map((a) => a.id)
+  );
+
+  const missingCompletedActions = completedActionsFromCurrent.filter((a) => {
+    if (a.sourceRef?.id && freshSourceIds.has(a.sourceRef.id)) return false;
+    if (freshActionIds.has(a.id)) return false;
+    return true;
+  });
+
+  const mergedActions = [...missingCompletedActions, ...updatedFreshActions];
 
   const completedCount = mergedActions.filter(
     (a) => a.status === "completed"

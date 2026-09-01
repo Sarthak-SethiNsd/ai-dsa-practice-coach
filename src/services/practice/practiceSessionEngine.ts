@@ -195,13 +195,15 @@ export async function submitOutcome(
       const remainingMinutes = Math.floor(remainingSeconds / 60);
       const nextIndex = session.currentProblemIndex + 1;
       const trimmedQueue = updatedQueue.slice(0, nextIndex);
+      let futureEstimatedMinutes = 0;
       for (
         let i = nextIndex;
         i < updatedQueue.length;
         i++
       ) {
         const est = updatedQueue[i].timeEstimate.estimatedMinutes;
-        if (trimmedQueue.reduce((s, p) => s + p.timeEstimate.estimatedMinutes, 0) + est <= remainingMinutes) {
+        if (futureEstimatedMinutes + est <= remainingMinutes) {
+          futureEstimatedMinutes += est;
           trimmedQueue.push({ ...updatedQueue[i], difficulty: decision.targetDifficulty ?? updatedQueue[i].difficulty });
         } else {
           removedIds.push(updatedQueue[i].problemId);

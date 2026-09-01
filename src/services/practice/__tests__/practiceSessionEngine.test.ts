@@ -43,6 +43,9 @@ import {
 import {
   buildSessionPlan,
 } from "../practiceSessionPlanner";
+import {
+  submitOutcome,
+} from "../practiceSessionEngine";
 
 // Mock localStorage for Node environment tests
 class LocalStorageMock {
@@ -553,5 +556,48 @@ describe("Adaptive Practice Session Engine - 20 Core Test Scenarios", () => {
     assert.equal(analytics.problemsAttempted, 1);
     assert.equal(analytics.problemsSolved, 1);
     assert.ok(score.overallScore > 0);
+  });
+
+  // Test 21: Regression Issue #1 — Queue trimming preserves future problems without double-counting elapsed time
+  test("21. Queue trimming calculates capacity from future problems only and does not double-count elapsed time", async () => {
+    // 60-minute session started 25 minutes ago -> 35 minutes remaining
+    const started25mAgo = new Date(Date.now() - 25 * 60 * 1000).toISOString();
+    const session = createMockSession({
+      durationMinutes: 60,
+      startedAt: started25mAgo,
+      timerStartedAt: started25mAgo,
+      currentProblemIndex: 0,
+      plannedProblems: [
+        createMockProblem({ problemId: 101, difficulty: "Medium", timeEstimate: { estimatedMinutes: 25, confidence: "HIGH", basis: "default" } }),
+        createMockProblem({ problemId: 102, difficulty: "Medium", timeEstimate: { estimatedMinutes: 20, confidence: "HIGH", basis: "default" } }),
+        createMockProblem({ problemId: 103, difficulty: "Medium", timeEstimate: { estimatedMinutes: 20, confidence: "HIGH", basis: "default" } }),
+      ],
+      completedProblems: [],
+      outcomes: [],
+    });
+
+    // Save session in storage so submitOutcome can update it
+    saveActiveSession(session);
+
+    // Submit Problem 101 as TIMED_OUT (triggers queue trimming)
+    const { session: updatedSession, adaptation } = await submitOutcome(
+      session,
+      "TIMED_OUT",
+      25 * 60, // 25 minutes spent
+      0,
+      "too_hard",
+      "Timed out on first problem"
+    );
+
+    // Problem 1 (25m) was completed/timed out.
+    // 35 minutes remain.
+    // Problem 2 (20m) fits (20 <= 35) -> KEPT.
+    // Problem 3 (20m) exceeds (20 + 20 = 40 > 35) -> TRIMMED.
+    // Resulting plannedProblems should contain Problem 1 (index 0) and Problem 2 (index 1), length = 2.
+    assert.equal(adaptation?.adjustmentType, "QUEUE_TRIM");
+    assert.equal(updatedSession.plannedProblems.length, 2);
+    assert.equal(updatedSession.plannedProblems[0].problemId, 101);
+    assert.equal(updatedSession.plannedProblems[1].problemId, 102);
+    assert.deepEqual(adaptation?.problemsRemoved, [103]);
   });
 });
