@@ -39,6 +39,7 @@ import {
   dispatchRecommendationFeedback,
   dispatchLearningGraphFeedback,
   dispatchSRSFeedback,
+  estimateProblemTime,
 } from "../practiceSessionOutcome";
 import {
   buildSessionPlan,
@@ -601,3 +602,69 @@ describe("Adaptive Practice Session Engine - 20 Core Test Scenarios", () => {
     assert.deepEqual(adaptation?.problemsRemoved, [103]);
   });
 });
+
+// ─── Regression: Fix Minor #1 — numeric median in estimateProblemTime ─────────
+
+describe("estimateProblemTime -- numeric median regression (Minor Fix #1)", () => {
+  /**
+   * Builds a mock PracticeSession whose outcomes carry specific actualSolveTimeSeconds values.
+   * The function under test (estimateProblemTime) reads outcomes from the supplied session
+   * to compute the in-session time estimate for the next problem.
+   *
+   * Scenario that distinguishes lexicographic from numeric sort:
+   *   Solve times in minutes: 5, 25, 12
+   *   Lexicographic sort  => [12, 25, 5]   => median index 1 => 25  (WRONG)
+   *   Numeric sort        => [5, 12, 25]   => median index 1 => 12  (CORRECT)
+   */
+  function makeSessionWithSolveTimes(minutesList: number[]): PracticeSession {
+    const outcomes: PracticeSessionOutcome[] = minutesList.map((minutes, i) => ({
+      problemId: 200 + i,
+      sessionProblemIndex: i,
+      outcomeType: "SOLVED_INDEPENDENTLY" as const,
+      actualSolveTimeSeconds: minutes * 60,
+      estimatedSolveTimeSeconds: 20 * 60,
+      hintCount: 0,
+      perceivedDifficulty: "appropriate" as const,
+      sessionPosition: i + 1,
+      timestamp: new Date().toISOString(),
+      notes: "",
+      adaptationTriggered: false,
+    }));
+
+    return createMockSession({ outcomes });
+  }
+
+  test("22. estimateProblemTime uses numeric sort: solve times [5, 25, 12] min produce median 12, not 25", () => {
+    const session = makeSessionWithSolveTimes([5, 25, 12]);
+
+    // With lexicographic sort:  [12, 25, 5][1] = 25  (incorrect)
+    // With numeric sort:        [5, 12, 25][1] = 12  (correct)
+    const estimate = estimateProblemTime("Medium", session);
+
+    assert.strictEqual(estimate.confidence, "MEDIUM", "Should use session historical data (>= 2 solved)");
+    assert.strictEqual(estimate.basis, "session historical median");
+    assert.strictEqual(
+      estimate.estimatedMinutes,
+      12,
+      "Numeric median of [5, 12, 25] must be 12; lexicographic median would incorrectly return 25"
+    );
+  });
+
+  test("23. estimateProblemTime numeric sort: two equal solve times return that time as median", () => {
+    const session = makeSessionWithSolveTimes([20, 20]);
+    const estimate = estimateProblemTime("Easy", session);
+
+    assert.strictEqual(estimate.confidence, "MEDIUM");
+    assert.strictEqual(estimate.estimatedMinutes, 20);
+  });
+
+  test("24. estimateProblemTime falls back to difficulty default when fewer than 2 outcomes", () => {
+    const session = makeSessionWithSolveTimes([15]);
+    const estimate = estimateProblemTime("Easy", session);
+
+    // Only 1 outcome — must fall back to LOW confidence difficulty default
+    assert.strictEqual(estimate.confidence, "LOW");
+    assert.strictEqual(estimate.basis, "difficulty default");
+  });
+});
+

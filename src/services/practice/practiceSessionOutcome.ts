@@ -240,7 +240,7 @@ export function estimateProblemTime(
       .filter((t) => t > 0);
 
     if (solveTimes.length >= 2) {
-      const median = solveTimes.sort()[Math.floor(solveTimes.length / 2)];
+      const median = [...solveTimes].sort((a, b) => a - b)[Math.floor(solveTimes.length / 2)];
       return {
         estimatedMinutes: Math.round(median),
         confidence: "MEDIUM",

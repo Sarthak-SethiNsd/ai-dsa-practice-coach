@@ -1,7 +1,6 @@
 import {
   DailyPlan,
   DailyAction,
-  ActionType,
   AIDailyCoachAdvice,
   TomorrowPreviewData,
   PlanHistoryRecord,
