@@ -30,6 +30,7 @@ import {
   LineChart,
   Zap,
   Image as ImageIcon,
+  PlayCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -57,6 +58,7 @@ export function Sidebar({
     { name: "Virtual Contest",   href: "/virtual-contest", icon: Swords     },
     { name: "Mock Interview",    href: "/mock-interview",  icon: Briefcase  },
     { name: "Adaptive Practice", href: "/practice",        icon: BookOpen   },
+    { name: "Algorithm Visualizer", href: "/visualizer",   icon: PlayCircle },
     { name: "Study Session",     href: "/study-session",   icon: Flame      },
     { name: "Knowledge Base",    href: "/knowledge",       icon: Brain      },
     { name: "Visual Gallery & Tours", href: "/gallery",    icon: ImageIcon  },
